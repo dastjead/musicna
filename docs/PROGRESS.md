@@ -6,9 +6,9 @@
 
 ## 현재 상태
 
-- **현재 Phase**: Phase 0 완료 → Phase 1 (macOS 캡처 + 트랙 분할) 대기
+- **현재 Phase**: Phase 1 구현 완료 — **실기기 검증은 화면 기록 권한 대기** (사용자 작업 필요, 아래 참조)
 - **작업 브랜치**: `claude/music-analysis-app-planning-rsfa6x`
-- **다음 할 일**: Phase 1은 macOS 실기기 필요 (Swift 캡처 헬퍼). Linux 환경에서는 Phase 2~3 준비(muscriptor/allin1 패키지명·설치 검증, WAV 파일 입력 파이프라인)를 먼저 진행 가능
+- **다음 할 일**: ① 시스템 설정 → 개인정보 보호 및 보안 → 화면·시스템 오디오 기록에서 터미널 허용 → `uv run musicna-session --source spotify`로 Spotify 캡처 검증(마일스톤) ② 이후 Phase 2 (muscriptor MIDI 변환)
 
 ## Phase 체크리스트
 
@@ -25,10 +25,10 @@
 - [x] 커밋·푸시
 
 ### Phase 1 — 캡처 + 트랙 분할 (macOS 실기기 필요)
-- [ ] Swift 캡처 헬퍼 (ScreenCaptureKit → PCM stdout)
-- [ ] Python 세션 매니저: PCM 수신 → 트랙별 WAV 저장
-- [ ] AppleScript 메타데이터 (Spotify/Apple Music) + 무음 감지 폴백
-- [ ] 마일스톤: Spotify 재생 시 곡 단위 WAV 자동 저장
+- [x] Swift 캡처 헬퍼 (ScreenCaptureKit → PCM stdout) — `capture-macos/`, swift build 성공
+- [x] Python 세션 매니저: PCM 수신 → 트랙별 WAV 저장 — `api/src/musicna_api/session/`, TDD 테스트 17개
+- [x] AppleScript 메타데이터 (Spotify/Apple Music) + 무음 감지 폴백
+- [ ] 마일스톤: Spotify 재생 시 곡 단위 WAV 자동 저장 — **화면 기록 권한 부여 후 검증 필요** (배선 스모크는 통과: 헬퍼 spawn→스트림 종료→정상 마무리)
 
 ### Phase 2 — MIDI 변환
 - [ ] muscriptor 통합 (core/transcribe), WAV → .mid
@@ -58,6 +58,7 @@
 |---|---|---|
 | 2026-07-24 | 프로젝트 방향 논의, 기술 조사, PLAN.md/PROGRESS.md 작성, Phase 0 착수 | muscriptor=오디오→MIDI 전사(가중치 CC BY-NC), Essentia는 arm64 휠 결함으로 CLAP 채택 |
 | 2026-07-24 | Phase 0 완료: uv 워크스페이스, core(모델·DB·스텁), api(FastAPI), 문서·테스트 | ML 의존성은 optional extra로만 선언 — **패키지명 미검증**, Phase 2/3 착수 시 확인 필요 |
+| 2026-07-25 | Phase 1 구현: Swift 캡처 헬퍼(SCK→float32 PCM stdout), 세션 매니저(pcm/metadata/silence/recorder/cli, TDD 19 passed), `musicna-session` CLI | 실기기 캡처는 터미널 화면 기록 권한(TCC) 거절로 미검증 — 권한 부여 후 Spotify 재생 검증 필요. macOS 26.5 / Swift 6.3.2 CLT |
 
 ## 협업 메모 (세션 재개/서브에이전트용)
 
