@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+uv.lock
+dist/
+*.egg-info/
+.pytest_cache/
+
+# 캡처 데이터 — 스트리밍 음원은 사적 이용 한정, 절대 커밋하지 않는다
+data/*
+!data/.gitkeep
+
+# Swift
+capture-macos/.build/
+
+# macOS
+.DS_Store

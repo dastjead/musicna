@@ -1,0 +1,34 @@
+[project]
+name = "musicna-core"
+version = "0.1.0"
+description = "musicna 분석 코어 — 플랫폼 독립 파이프라인 (오디오 파일 in → 구조화된 분석 결과 out)"
+requires-python = ">=3.11"
+dependencies = [
+    "pydantic>=2.7",
+    "sqlalchemy>=2.0",
+]
+
+# 무거운 ML 의존성은 extra로 분리한다 — 패키지명은 각 Phase 착수 시 검증할 것 (docs/PROGRESS.md 참조)
+[project.optional-dependencies]
+transcribe = [
+    "muscriptor",        # Phase 2: 오디오 → MIDI (Apple Metal 지원)
+]
+analyze = [
+    "allin1",            # Phase 3: 구조/BPM/비트 (madmom을 함께 끌어옴)
+    "librosa>=0.10",     # Phase 3: 키 추정, chroma
+    "music21>=9",        # Phase 3: MIDI 코드 분석
+    "chorder",           # Phase 3: MIDI 코드 템플릿 매칭
+]
+mood = [
+    "laion-clap",        # Phase 3: zero-shot 무드 태깅
+]
+
+[dependency-groups]
+dev = ["pytest>=8"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/musicna_core"]
