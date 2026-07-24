@@ -9,8 +9,8 @@
 - **현재 Phase**: **Phase 2 완료** (WAV→MIDI 마일스톤 검증 통과) ∥ Phase 3 준비 (원격 Linux에서 병행)
 - **작업 브랜치**: `claude/music-analysis-app-planning-rsfa6x`
 - **분담**: `capture-macos/`·`api/session/`은 macOS 로컬 담당, 원격은 `core/`·문서 담당. 작업 전 반드시 pull
-- **다음 할 일 (macOS)**: Phase 3 — `uv sync --extra analyze`로 allin1 실설치·구조/BPM 검증, CLAP 무드 스파이크
-- **다음 할 일 (원격)**: 코드 진행 추출(MIDI 기반, chorder/music21), analyze 파이프라인 조립
+- **다음 할 일 (macOS)**: Phase 3 — `uv sync --extra analyze`로 allin1 실설치·구조/BPM 검증(실캡처 곡으로 `analyze_track` 실행), CLAP 무드 스파이크(무드 프롬프트 세트 확정 → `_analyze_moods` TODO 구현)
+- **다음 할 일 (원격)**: Phase 4 — AnalysisResult → SQLite 저장 함수(core/store 저장소 패턴), api /tracks를 DB 조회로 교체
 
 ## Phase 체크리스트
 
@@ -44,9 +44,11 @@
 
 ### Phase 3 — 배치 분석
 - [x] MIDI 기반 키 추정 구현 (`core/analyze/keys.py`, music21 Krumhansl-Schmuckler) + 합성 MIDI 테스트 2건
-- [ ] 코드 진행 추출: MIDI 기반(chorder/music21) → 오디오(chroma) 교차 검증
-- [ ] allin1 구조/BPM (macOS 또는 GPU 환경에서 검증)
-- [ ] 스파이크: CLAP 무드 태깅 품질 검증
+- [x] 코드 진행 추출(MIDI 기반): `core/analyze/chords.py` — 초 단위 창·지속시간 가중 피치클래스 집계, music21 harmony 라벨링, 연속 코드 병합. 합성 MIDI 테스트 3건 (triad 진행·7th·빈 MIDI)
+- [x] analyze 파이프라인 조립: `analyze_track()` — 키+코드(base 의존성만으로 동작) + allin1/CLAP은 설치 시에만 채워지는 graceful degradation. 테스트 2건
+- [ ] 코드 진행 오디오(chroma) 교차 검증 — librosa/madmom 통합 시 (source=AUDIO/MERGED)
+- [ ] **(macOS)** allin1 실설치·구조/BPM 검증 — 실캡처 곡으로 `analyze_track` 실행
+- [ ] **(macOS)** 스파이크: CLAP 무드 태깅 품질 검증 → `_analyze_moods` TODO 구현
 - [ ] 마일스톤: 곡 1개 전체 분석 JSON
 
 ### Phase 4 — DB 저장
@@ -73,6 +75,7 @@
 | 2026-07-25 | **Phase 1 마일스톤 검증 통과**: 화면 기록 권한 부여 후 Spotify 실캡처 → 트랙 전환 시 WAV+JSON 자동 분할 저장 확인 (2트랙). 버그 수정: AppleScript 변수명 `st`가 앱 tell 블록 내 스크립팅 용어와 충돌해 구문 오류 → `playerStateText`로 변경 | `st` 버그는 TCC 미검증 상태에서 잠복해 있던 것 — 실기기 검증의 중요성. 19 tests passed |
 | 2026-07-25 | Phase 2 진행: muscriptor 실설치(transcribe extra), import·MPS available 확인 | 가중치 다운로드는 HF 로그인+라이선스 동의 필요(사용자 작업) — 완료 후 WAV→MIDI 마일스톤 검증 |
 | 2026-07-25 | **Phase 2 마일스톤 검증 통과**: HF 로그인·라이선스 동의(사용자) → small/large 전사 성공, 피아노롤 확인. torch 2.2.2→2.13.0 (arm64 한정 상한 해제) | torch 2.2 MPS는 FFT 미구현(`aten::_fft_r2c`) — muscriptor의 `<2.3` 핀은 darwin x86_64 전용인데 uv가 공통 해석으로 2.2.2를 선택했던 것. large 전사: 28.5초 오디오 150초(가중치 다운로드 포함) |
+| 2026-07-25 | 원격: Phase 3 코드 진행 추출(MIDI 기반) + `analyze_track` 파이프라인 조립 | 30 tests passed. chorder 대신 music21 harmony 라벨링으로 base 의존성만으로 구현(합성 MIDI에서 C/F/G/C·Am7 정확). allin1/CLAP 미설치 시 자동 건너뜀 — macOS에서 extra 설치 후 실캡처 곡 검증 필요 |
 
 ## 실기기 검증 상세 기록 — 2026-07-25 (macOS)
 

@@ -1,20 +1,76 @@
-"""배치 분석 파이프라인 — 구조(allin1), 코드(MIDI+오디오 교차), 키, 무드(CLAP). Phase 3에서 구현.
+"""배치 분석 파이프라인 — WAV(+MIDI) → AnalysisResult.
 
-모든 무거운 의존성은 optional extra(analyze, mood)로 분리되어 있으며 import 시점에 요구하지 않는다.
+설치된 의존성에 따라 단계적으로 동작한다:
+- 키·코드 진행(MIDI 기반): base 의존성(music21)만으로 동작 — Linux CI 포함 어디서나
+- 구조/BPM(allin1), 무드(CLAP): optional extra 설치 시에만 채워지고, 없으면 건너뛴다
+
+교차 검증(오디오 chroma 기반 코드)과 CLAP 무드는 macOS 스파이크 후 통합 예정 (docs/PROGRESS.md).
 """
 
+import logging
+from datetime import datetime
+from importlib.metadata import version as pkg_version
 from pathlib import Path
 
-from musicna_core.models import AnalysisResult, TrackMeta
+from musicna_core.analyze.chords import extract_chords_from_midi
+from musicna_core.analyze.keys import estimate_key_from_midi
+from musicna_core.models import AnalysisResult, MoodTag, Section, TrackMeta
+
+logger = logging.getLogger(__name__)
+
+__all__ = ["analyze_track", "extract_chords_from_midi", "estimate_key_from_midi"]
+
+
+def _analyze_structure(audio_path: Path) -> tuple[float | None, list[Section], str | None]:
+    """allin1 구조 분석. 미설치/실패 시 (None, [], None)."""
+    try:
+        import allin1
+    except ImportError:
+        logger.info("allin1 미설치 — 구조/BPM 분석 건너뜀 (uv sync --extra analyze)")
+        return None, [], None
+    result = allin1.analyze(str(audio_path))
+    sections = [Section(label=seg.label, start_s=seg.start, end_s=seg.end) for seg in result.segments]
+    return float(result.bpm), sections, pkg_version("allin1")
+
+
+def _analyze_moods(audio_path: Path) -> tuple[list[MoodTag], str | None]:
+    """CLAP zero-shot 무드 태깅. 스파이크(macOS) 확정 전까지는 미구현 — 미설치/실패 시 ([], None)."""
+    try:
+        import laion_clap  # noqa: F401
+    except ImportError:
+        logger.info("laion-clap 미설치 — 무드 분석 건너뜀 (uv sync --extra mood)")
+        return [], None
+    # TODO(Phase 3 스파이크): 무드 프롬프트 세트 확정 후 zero-shot 점수 구현
+    logger.warning("CLAP 무드 태깅은 스파이크 확정 전 — 빈 결과 반환")
+    return [], pkg_version("laion-clap")
 
 
 def analyze_track(audio_path: Path, midi_path: Path | None, meta: TrackMeta) -> AnalysisResult:
-    """오디오(+선택적 MIDI)를 분석하여 AnalysisResult를 돌려준다.
+    """오디오(+선택적 MIDI)를 분석하여 AnalysisResult를 돌려준다."""
+    versions: dict[str, str] = {"music21": pkg_version("music21")}
 
-    Phase 3 구현 순서 (docs/PLAN.md 참조):
-    1. allin1 → bpm, sections
-    2. 코드 진행: music21/chorder(MIDI) + madmom chroma(오디오) 교차 검증 → chords
-    3. librosa/music21 → key, mode
-    4. CLAP zero-shot → moods (스파이크로 품질 검증 후 확정)
-    """
-    raise NotImplementedError("Phase 3에서 구현")
+    key = mode = None
+    chords = []
+    if midi_path is not None:
+        key, mode, _ = estimate_key_from_midi(midi_path)
+        chords = extract_chords_from_midi(midi_path)
+
+    bpm, sections, allin1_ver = _analyze_structure(audio_path)
+    if allin1_ver:
+        versions["allin1"] = allin1_ver
+    moods, clap_ver = _analyze_moods(audio_path)
+    if clap_ver:
+        versions["laion-clap"] = clap_ver
+
+    return AnalysisResult(
+        track=meta,
+        bpm=bpm,
+        key=key,
+        mode=mode,
+        sections=sections,
+        chords=chords,
+        moods=moods,
+        midi_path=str(midi_path) if midi_path else None,
+        engine_versions=versions,
+        analyzed_at=datetime.now(),
+    )
