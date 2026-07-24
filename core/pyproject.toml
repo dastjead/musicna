@@ -14,6 +14,9 @@ dependencies = [
 [project.optional-dependencies]
 transcribe = [
     "muscriptor>=0.2.2", # Phase 2: 오디오 → MIDI (Apple Metal 지원, 가중치는 HF 로그인 필요)
+    # muscriptor의 torch<2.3 핀은 darwin x86_64 전용 — arm64는 MPS FFT(aten::_fft_r2c)가
+    # 구현된 2.3+가 필요해 상한을 올린다 (없으면 uv가 전 플랫폼 공통 2.2.2로 하향 해석)
+    "torch>=2.3; platform_machine == 'arm64'",
 ]
 analyze = [
     "allin1>=1.1",       # Phase 3: 구조/BPM/비트 (madmom을 함께 끌어옴, macOS는 natten 자동 설치)

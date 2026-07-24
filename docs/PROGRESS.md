@@ -6,10 +6,10 @@
 
 ## 현재 상태
 
-- **현재 Phase**: **Phase 1 완료** (실기기 마일스톤 검증 통과) ∥ Phase 2~3 준비 (원격 Linux에서 병행)
+- **현재 Phase**: **Phase 2 완료** (WAV→MIDI 마일스톤 검증 통과) ∥ Phase 3 준비 (원격 Linux에서 병행)
 - **작업 브랜치**: `claude/music-analysis-app-planning-rsfa6x`
 - **분담**: `capture-macos/`·`api/session/`은 macOS 로컬 담당, 원격은 `core/`·문서 담당. 작업 전 반드시 pull
-- **다음 할 일 (macOS)**: **사용자 작업 — HF 로그인** (`uvx --from huggingface_hub hf auth login` + muscriptor 모델 페이지에서 라이선스 동의) → 이후 캡처된 WAV로 .mid 생성 (Phase 2 마일스톤). muscriptor 설치·MPS 가용성은 검증 완료
+- **다음 할 일 (macOS)**: Phase 3 — `uv sync --extra analyze`로 allin1 실설치·구조/BPM 검증, CLAP 무드 스파이크
 - **다음 할 일 (원격)**: 코드 진행 추출(MIDI 기반, chorder/music21), analyze 파이프라인 조립
 
 ## Phase 체크리스트
@@ -38,8 +38,9 @@
 - [x] core/transcribe 래퍼 구현 (지연 import, 모델 캐시, 배치=large·스트림=small) + 스텁 기반 단위 테스트 4건
 - [x] Python 3.12 고정 (muscriptor가 3.10~3.12만 지원, `.python-version`)
 - [x] **(macOS)** muscriptor 실설치 (`uv sync --package musicna-core --extra transcribe`) — import·torch 2.2.2 MPS available 확인
-- [ ] **(macOS, 사용자)** HF 로그인 + muscriptor 가중치 라이선스 동의 → 모델 로드·Metal 전사 검증
-- [ ] 마일스톤: 캡처된 곡 WAV → .mid 생성, 피아노롤로 확인
+- [x] **(macOS, 사용자)** HF 로그인 + muscriptor 가중치 라이선스 동의 (small/large 모델 페이지 각각)
+- [x] torch를 arm64에서 2.3+로 상향 — 2.2.2의 MPS는 FFT(`aten::_fft_r2c`) 미구현으로 전사 불가 (`core/pyproject.toml` 참조)
+- [x] 마일스톤: 캡처된 곡 WAV → .mid 생성, 피아노롤로 확인 — large 모델로 28.5초 캡처 전사(708노트, guitar/bass/drums/voice 트랙 분리), MPS 정상 동작
 
 ### Phase 3 — 배치 분석
 - [x] MIDI 기반 키 추정 구현 (`core/analyze/keys.py`, music21 Krumhansl-Schmuckler) + 합성 MIDI 테스트 2건
@@ -71,6 +72,7 @@
 | 2026-07-25 | Phase 1 구현: Swift 캡처 헬퍼(SCK→float32 PCM stdout), 세션 매니저(pcm/metadata/silence/recorder/cli, TDD 19 passed), `musicna-session` CLI | 실기기 캡처는 터미널 화면 기록 권한(TCC) 거절로 미검증 — 권한 부여 후 Spotify 재생 검증 필요. macOS 26.5 / Swift 6.3.2 CLT |
 | 2026-07-25 | **Phase 1 마일스톤 검증 통과**: 화면 기록 권한 부여 후 Spotify 실캡처 → 트랙 전환 시 WAV+JSON 자동 분할 저장 확인 (2트랙). 버그 수정: AppleScript 변수명 `st`가 앱 tell 블록 내 스크립팅 용어와 충돌해 구문 오류 → `playerStateText`로 변경 | `st` 버그는 TCC 미검증 상태에서 잠복해 있던 것 — 실기기 검증의 중요성. 19 tests passed |
 | 2026-07-25 | Phase 2 진행: muscriptor 실설치(transcribe extra), import·MPS available 확인 | 가중치 다운로드는 HF 로그인+라이선스 동의 필요(사용자 작업) — 완료 후 WAV→MIDI 마일스톤 검증 |
+| 2026-07-25 | **Phase 2 마일스톤 검증 통과**: HF 로그인·라이선스 동의(사용자) → small/large 전사 성공, 피아노롤 확인. torch 2.2.2→2.13.0 (arm64 한정 상한 해제) | torch 2.2 MPS는 FFT 미구현(`aten::_fft_r2c`) — muscriptor의 `<2.3` 핀은 darwin x86_64 전용인데 uv가 공통 해석으로 2.2.2를 선택했던 것. large 전사: 28.5초 오디오 150초(가중치 다운로드 포함) |
 
 ## 협업 메모 (세션 재개/서브에이전트용)
 
