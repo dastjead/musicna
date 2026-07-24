@@ -6,9 +6,11 @@
 
 ## 현재 상태
 
-- **현재 Phase**: Phase 1 구현 완료 — **실기기 검증은 화면 기록 권한 대기** (사용자 작업 필요, 아래 참조)
+- **현재 Phase**: Phase 1 구현 완료(실기기 검증은 화면 기록 권한 대기) ∥ Phase 2~3 준비 (원격 Linux에서 병행)
 - **작업 브랜치**: `claude/music-analysis-app-planning-rsfa6x`
-- **다음 할 일**: ① 시스템 설정 → 개인정보 보호 및 보안 → 화면·시스템 오디오 기록에서 터미널 허용 → `uv run musicna-session --source spotify`로 Spotify 캡처 검증(마일스톤) ② 이후 Phase 2 (muscriptor MIDI 변환)
+- **분담**: `capture-macos/`·`api/session/`은 macOS 로컬 담당, 원격은 `core/`·문서 담당. 작업 전 반드시 pull
+- **다음 할 일 (macOS)**: ① 시스템 설정 → 개인정보 보호 및 보안 → 화면·시스템 오디오 기록에서 터미널 허용 → `uv run musicna-session --source spotify`로 Spotify 캡처 검증(마일스톤) ② `uv sync --extra transcribe`로 muscriptor 실설치·Metal 실행 검증 (HF 로그인 필요, 아래 메모)
+- **다음 할 일 (원격)**: 코드 진행 추출(MIDI 기반, chorder/music21), analyze 파이프라인 조립
 
 ## Phase 체크리스트
 
@@ -31,12 +33,18 @@
 - [ ] 마일스톤: Spotify 재생 시 곡 단위 WAV 자동 저장 — **화면 기록 권한 부여 후 검증 필요** (배선 스모크는 통과: 헬퍼 spawn→스트림 종료→정상 마무리)
 
 ### Phase 2 — MIDI 변환
-- [ ] muscriptor 통합 (core/transcribe), WAV → .mid
-- [ ] 마일스톤: 피아노롤로 MIDI 확인
+- [x] ML 의존성 패키지명 PyPI 실재 검증 (muscriptor 0.2.2, allin1 1.1.0, chorder, laion-clap, music21, librosa, madmom)
+- [x] muscriptor API 조사: `TranscriptionModel.load_model(size)` / `transcribe_to_midi()` / 스트리밍 `transcribe()` 이벤트 API(Phase 6에 사용)
+- [x] core/transcribe 래퍼 구현 (지연 import, 모델 캐시, 배치=large·스트림=small) + 스텁 기반 단위 테스트 4건
+- [x] Python 3.12 고정 (muscriptor가 3.10~3.12만 지원, `.python-version`)
+- [ ] **(macOS)** muscriptor 실설치·Metal 실행 검증 — HF gated 가중치: `hf auth login` + 모델 페이지 라이선스 동의 필요
+- [ ] 마일스톤: 캡처된 곡 WAV → .mid 생성, 피아노롤로 확인
 
 ### Phase 3 — 배치 분석
+- [x] MIDI 기반 키 추정 구현 (`core/analyze/keys.py`, music21 Krumhansl-Schmuckler) + 합성 MIDI 테스트 2건
+- [ ] 코드 진행 추출: MIDI 기반(chorder/music21) → 오디오(chroma) 교차 검증
+- [ ] allin1 구조/BPM (macOS 또는 GPU 환경에서 검증)
 - [ ] 스파이크: CLAP 무드 태깅 품질 검증
-- [ ] allin1 구조/BPM, 코드 진행(MIDI+오디오 교차), 키 추정
 - [ ] 마일스톤: 곡 1개 전체 분석 JSON
 
 ### Phase 4 — DB 저장
@@ -57,7 +65,8 @@
 | 날짜 | 작업 | 비고 |
 |---|---|---|
 | 2026-07-24 | 프로젝트 방향 논의, 기술 조사, PLAN.md/PROGRESS.md 작성, Phase 0 착수 | muscriptor=오디오→MIDI 전사(가중치 CC BY-NC), Essentia는 arm64 휠 결함으로 CLAP 채택 |
-| 2026-07-24 | Phase 0 완료: uv 워크스페이스, core(모델·DB·스텁), api(FastAPI), 문서·테스트 | ML 의존성은 optional extra로만 선언 — **패키지명 미검증**, Phase 2/3 착수 시 확인 필요 |
+| 2026-07-24 | Phase 0 완료: uv 워크스페이스, core(모델·DB·스텁), api(FastAPI), 문서·테스트 | ML 의존성은 optional extra로만 선언 |
+| 2026-07-24 | 원격: 패키지명 PyPI 검증, muscriptor API 조사, core/transcribe 래퍼, MIDI 키 추정, Python 3.12 고정 | core 테스트 8건 통과. **muscriptor 가중치는 HF gated** — macOS에서 `hf auth login` 필요 |
 | 2026-07-25 | Phase 1 구현: Swift 캡처 헬퍼(SCK→float32 PCM stdout), 세션 매니저(pcm/metadata/silence/recorder/cli, TDD 19 passed), `musicna-session` CLI | 실기기 캡처는 터미널 화면 기록 권한(TCC) 거절로 미검증 — 권한 부여 후 Spotify 재생 검증 필요. macOS 26.5 / Swift 6.3.2 CLT |
 
 ## 협업 메모 (세션 재개/서브에이전트용)

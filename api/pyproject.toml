@@ -2,7 +2,7 @@
 name = "musicna-api"
 version = "0.1.0"
 description = "musicna API 서버 — core를 REST/WebSocket으로 노출하는 유일한 진입점 (웹/iOS 클라이언트 공용)"
-requires-python = ">=3.11"
+requires-python = ">=3.11,<3.13"
 dependencies = [
     "musicna-core",
     "fastapi>=0.111",

@@ -2,25 +2,26 @@
 name = "musicna-core"
 version = "0.1.0"
 description = "musicna 분석 코어 — 플랫폼 독립 파이프라인 (오디오 파일 in → 구조화된 분석 결과 out)"
-requires-python = ">=3.11"
+# muscriptor가 Python 3.10~3.12 지원 → 3.13 미만으로 고정 (.python-version=3.12)
+requires-python = ">=3.11,<3.13"
 dependencies = [
     "pydantic>=2.7",
     "sqlalchemy>=2.0",
+    "music21>=9",       # MIDI 키/코드 분석 (순수 Python이라 base에 포함)
 ]
 
-# 무거운 ML 의존성은 extra로 분리한다 — 패키지명은 각 Phase 착수 시 검증할 것 (docs/PROGRESS.md 참조)
+# 무거운 ML 의존성은 extra로 분리한다 — 패키지명은 PyPI 실재 확인 완료 (2026-07-24)
 [project.optional-dependencies]
 transcribe = [
-    "muscriptor",        # Phase 2: 오디오 → MIDI (Apple Metal 지원)
+    "muscriptor>=0.2.2", # Phase 2: 오디오 → MIDI (Apple Metal 지원, 가중치는 HF 로그인 필요)
 ]
 analyze = [
-    "allin1",            # Phase 3: 구조/BPM/비트 (madmom을 함께 끌어옴)
-    "librosa>=0.10",     # Phase 3: 키 추정, chroma
-    "music21>=9",        # Phase 3: MIDI 코드 분석
-    "chorder",           # Phase 3: MIDI 코드 템플릿 매칭
+    "allin1>=1.1",       # Phase 3: 구조/BPM/비트 (madmom을 함께 끌어옴, macOS는 natten 자동 설치)
+    "librosa>=0.10",     # Phase 3: chroma, 오디오 특성
+    "chorder>=0.1.4",    # Phase 3: MIDI 코드 템플릿 매칭
 ]
 mood = [
-    "laion-clap",        # Phase 3: zero-shot 무드 태깅
+    "laion-clap>=1.1",   # Phase 3: zero-shot 무드 태깅
 ]
 
 [dependency-groups]
