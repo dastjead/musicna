@@ -7,7 +7,14 @@ dependencies = [
     "musicna-core",
     "fastapi>=0.111",
     "uvicorn>=0.30",
+    "numpy>=1.26",  # 세션 매니저 PCM 처리
 ]
+
+[project.scripts]
+musicna-session = "musicna_api.session.cli:main"
+
+[dependency-groups]
+dev = ["pytest>=8"]
 
 [tool.uv.sources]
 musicna-core = { workspace = true }
