@@ -15,17 +15,18 @@ _KEY_SEP = "\x1f"
 # state, title, artist, album, duration(s), position(s)
 _FIELD_COUNT = 6
 
+# 주의: 변수명 `st`는 앱 tell 블록 안에서 스크립팅 용어와 충돌해 구문 오류를 낸다
 _SPOTIFY_SCRIPT = f"""
 tell application "Spotify"
     if it is running then
-        set st to player state as text
-        if st is "playing" or st is "paused" then
+        set playerStateText to player state as text
+        if playerStateText is "playing" or playerStateText is "paused" then
             set t to current track
-            return st & "{FIELD_SEP}" & (name of t) & "{FIELD_SEP}" & (artist of t) ¬
+            return playerStateText & "{FIELD_SEP}" & (name of t) & "{FIELD_SEP}" & (artist of t) ¬
                 & "{FIELD_SEP}" & (album of t) & "{FIELD_SEP}" & ((duration of t) / 1000) ¬
                 & "{FIELD_SEP}" & (player position)
         end if
-        return st
+        return playerStateText
     end if
     return ""
 end tell
@@ -34,14 +35,14 @@ end tell
 _MUSIC_SCRIPT = f"""
 tell application "Music"
     if it is running then
-        set st to player state as text
-        if st is "playing" or st is "paused" then
+        set playerStateText to player state as text
+        if playerStateText is "playing" or playerStateText is "paused" then
             set t to current track
-            return st & "{FIELD_SEP}" & (name of t) & "{FIELD_SEP}" & (artist of t) ¬
+            return playerStateText & "{FIELD_SEP}" & (name of t) & "{FIELD_SEP}" & (artist of t) ¬
                 & "{FIELD_SEP}" & (album of t) & "{FIELD_SEP}" & (duration of t) ¬
                 & "{FIELD_SEP}" & (player position)
         end if
-        return st
+        return playerStateText
     end if
     return ""
 end tell

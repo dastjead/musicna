@@ -6,10 +6,10 @@
 
 ## 현재 상태
 
-- **현재 Phase**: Phase 1 구현 완료(실기기 검증은 화면 기록 권한 대기) ∥ Phase 2~3 준비 (원격 Linux에서 병행)
+- **현재 Phase**: **Phase 1 완료** (실기기 마일스톤 검증 통과) ∥ Phase 2~3 준비 (원격 Linux에서 병행)
 - **작업 브랜치**: `claude/music-analysis-app-planning-rsfa6x`
 - **분담**: `capture-macos/`·`api/session/`은 macOS 로컬 담당, 원격은 `core/`·문서 담당. 작업 전 반드시 pull
-- **다음 할 일 (macOS)**: ① 시스템 설정 → 개인정보 보호 및 보안 → 화면·시스템 오디오 기록에서 터미널 허용 → `uv run musicna-session --source spotify`로 Spotify 캡처 검증(마일스톤) ② `uv sync --extra transcribe`로 muscriptor 실설치·Metal 실행 검증 (HF 로그인 필요, 아래 메모)
+- **다음 할 일 (macOS)**: `uv sync --extra transcribe`로 muscriptor 실설치·Metal 실행 검증 (HF 로그인 필요, 아래 메모) → 캡처된 WAV로 .mid 생성 (Phase 2 마일스톤)
 - **다음 할 일 (원격)**: 코드 진행 추출(MIDI 기반, chorder/music21), analyze 파이프라인 조립
 
 ## Phase 체크리스트
@@ -30,7 +30,7 @@
 - [x] Swift 캡처 헬퍼 (ScreenCaptureKit → PCM stdout) — `capture-macos/`, swift build 성공
 - [x] Python 세션 매니저: PCM 수신 → 트랙별 WAV 저장 — `api/src/musicna_api/session/`, TDD 테스트 17개
 - [x] AppleScript 메타데이터 (Spotify/Apple Music) + 무음 감지 폴백
-- [ ] 마일스톤: Spotify 재생 시 곡 단위 WAV 자동 저장 — **화면 기록 권한 부여 후 검증 필요** (배선 스모크는 통과: 헬퍼 spawn→스트림 종료→정상 마무리)
+- [x] 마일스톤: Spotify 재생 시 곡 단위 WAV 자동 저장 — 실기기 검증 통과 (트랙 전환 시 자동 분할, WAV+JSON 사이드카 저장 확인)
 
 ### Phase 2 — MIDI 변환
 - [x] ML 의존성 패키지명 PyPI 실재 검증 (muscriptor 0.2.2, allin1 1.1.0, chorder, laion-clap, music21, librosa, madmom)
@@ -68,6 +68,7 @@
 | 2026-07-24 | Phase 0 완료: uv 워크스페이스, core(모델·DB·스텁), api(FastAPI), 문서·테스트 | ML 의존성은 optional extra로만 선언 |
 | 2026-07-24 | 원격: 패키지명 PyPI 검증, muscriptor API 조사, core/transcribe 래퍼, MIDI 키 추정, Python 3.12 고정 | core 테스트 8건 통과. **muscriptor 가중치는 HF gated** — macOS에서 `hf auth login` 필요 |
 | 2026-07-25 | Phase 1 구현: Swift 캡처 헬퍼(SCK→float32 PCM stdout), 세션 매니저(pcm/metadata/silence/recorder/cli, TDD 19 passed), `musicna-session` CLI | 실기기 캡처는 터미널 화면 기록 권한(TCC) 거절로 미검증 — 권한 부여 후 Spotify 재생 검증 필요. macOS 26.5 / Swift 6.3.2 CLT |
+| 2026-07-25 | **Phase 1 마일스톤 검증 통과**: 화면 기록 권한 부여 후 Spotify 실캡처 → 트랙 전환 시 WAV+JSON 자동 분할 저장 확인 (2트랙). 버그 수정: AppleScript 변수명 `st`가 앱 tell 블록 내 스크립팅 용어와 충돌해 구문 오류 → `playerStateText`로 변경 | `st` 버그는 TCC 미검증 상태에서 잠복해 있던 것 — 실기기 검증의 중요성. 19 tests passed |
 
 ## 협업 메모 (세션 재개/서브에이전트용)
 
