@@ -74,8 +74,53 @@
 | 2026-07-25 | Phase 2 진행: muscriptor 실설치(transcribe extra), import·MPS available 확인 | 가중치 다운로드는 HF 로그인+라이선스 동의 필요(사용자 작업) — 완료 후 WAV→MIDI 마일스톤 검증 |
 | 2026-07-25 | **Phase 2 마일스톤 검증 통과**: HF 로그인·라이선스 동의(사용자) → small/large 전사 성공, 피아노롤 확인. torch 2.2.2→2.13.0 (arm64 한정 상한 해제) | torch 2.2 MPS는 FFT 미구현(`aten::_fft_r2c`) — muscriptor의 `<2.3` 핀은 darwin x86_64 전용인데 uv가 공통 해석으로 2.2.2를 선택했던 것. large 전사: 28.5초 오디오 150초(가중치 다운로드 포함) |
 
+## 실기기 검증 상세 기록 — 2026-07-25 (macOS)
+
+> Phase 1·2 마일스톤을 실기기(macOS 26.5, Apple Silicon, Python 3.12, Swift 6.3.2 CLT)에서 검증한 상세 절차와 발견 사항. 재현·트러블슈팅용.
+
+### Phase 1 — Spotify 캡처 → 트랙별 WAV 자동 저장
+
+**검증 절차**
+
+1. 화면 기록 권한(TCC) 부여 확인: 캡처 헬퍼 단독 6초 실행 → 2,219,520바이트(≈5.8초 분량, 48kHz float32 스테레오) PCM 출력 확인
+2. E2E: Spotify 재생 상태에서 `uv run musicna-session --source spotify --out data/audio` 실행 → 25초 후 AppleScript로 트랙 전환(경계 유발) → 20초 후 SIGINT
+3. 결과: **2트랙이 곡 단위로 자동 분할 저장** — `001 - 中山美穂 - 世界中の誰よりきっと.wav` (28.7s) + `002 - 大滝詠一 - 君は天然色.wav` (19.5s), 각각 title/artist/album/duration/captured_at이 담긴 JSON 사이드카 동반. 일본어 곡명·파일명 처리 정상
+
+**발견 버그: AppleScript 변수명 `st` 용어 충돌** (`api/src/musicna_api/session/metadata.py`, 커밋 fb796a2)
+
+- 증상: 캡처는 정상이나 저장 트랙 0건. `poll_now_playing()`이 항상 None
+- 원인: `tell application "Spotify"` 블록 안에서 변수명 `st`가 앱 스크립팅 용어와 충돌 → osascript 구문 오류(-2741 "표현식을 예상했지만 st을 발견"). 최소 재현: 같은 스크립트에서 `st`→`myState`로만 바꾸면 정상
+- 수정: Spotify/Music 스크립트 모두 `playerStateText`로 변경
+- 교훈: 단위 테스트는 osascript 출력을 모킹했기 때문에 스크립트 자체의 구문 오류는 실기기에서만 드러났다. **앱 tell 블록 내 짧은 변수명은 피할 것**
+
+### Phase 2 — muscriptor WAV → MIDI (Apple Metal)
+
+**환경 준비 절차 (신규 머신 재현용)**
+
+1. `uv sync --package musicna-core --extra transcribe` — muscriptor 0.2.2 + torch 설치
+2. HF 로그인: `uvx --from huggingface_hub hf auth login` — **이 세션형 터미널에서는 대화형 입력 불가 → 별도 터미널에서 실행** (토큰은 read 권한이면 충분)
+3. 가중치 라이선스 동의: 로그인만으로는 403 GatedRepoError — **모델 페이지에서 각각 동의 필요** (자동 승인): [muscriptor-small](https://huggingface.co/MuScriptor/muscriptor-small), [muscriptor-large](https://huggingface.co/MuScriptor/muscriptor-large)
+
+**발견 문제: torch 2.2.2 MPS에 FFT 미구현** (`core/pyproject.toml`, 커밋 1853f7d)
+
+- 증상: 전사 시작 즉시 `NotImplementedError: aten::_fft_r2c is not currently implemented for the MPS device`
+- 원인: muscriptor의 `torch<2.3` 핀은 **darwin x86_64 전용 마커**인데, uv의 전 플랫폼 공통 해석이 arm64에도 2.2.2를 선택. MPS FFT는 torch 2.3+에서 구현됨
+- 수정: transcribe extra에 `"torch>=2.3; platform_machine == 'arm64'"` 추가 → 2.13.0으로 해석, MPS 네이티브 동작 (CPU 폴백 환경변수 불필요)
+
+**전사 결과**
+
+| 모델 | 입력 | 결과 | 소요 |
+|---|---|---|---|
+| small (103M) | 002 트랙 19.5s | 41노트 (clean electric guitar 38, drums 3) | 수 초 (가중치 다운로드 별도) |
+| large (1.4B) | 001 트랙 28.5s | **708노트, 4악기 트랙 분리** (distorted electric guitar 423, electric bass 107, drums 167, voice 11) | 150.3s (가중치 다운로드 포함) |
+
+- MIDI 길이가 WAV 길이와 일치(28.5s), 피아노롤 렌더로 시각 확인 완료
+- 전사 산출물은 `data/midi/`(git 미추적)에 저장 — 캡처 음원과 파생물은 사적 이용 한정, 저장소 커밋 금지
+
 ## 협업 메모 (세션 재개/서브에이전트용)
 
 - 개발 환경이 Linux 원격 컨테이너일 수 있음 → **capture-macos와 muscriptor Metal 실행은 로컬 macOS에서만 검증 가능**. 그 외(core/api)는 어디서든 테스트 가능
 - 무거운 ML 의존성(muscriptor, allin1, CLAP)은 core의 **optional extra**로 분리해 스캐폴딩 단계에서는 설치하지 않는다
 - 커밋·푸시는 지정 브랜치(`claude/music-analysis-app-planning-rsfa6x`)로만
+- **macOS 실행 요구사항** (상세는 위 검증 기록 참조): ① 터미널에 화면·시스템 오디오 기록 권한(TCC) ② HF 로그인 + muscriptor small/large 라이선스 동의 ③ arm64는 torch>=2.3 (transcribe extra가 강제함)
+- `data/`(audio/midi)는 git 미추적 — 검증 산출물은 이 머신 로컬에만 존재. 다른 머신에서 Phase 3 검증 시 캡처부터 다시 수행
