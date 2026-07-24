@@ -9,7 +9,7 @@
 - **현재 Phase**: **Phase 1 완료** (실기기 마일스톤 검증 통과) ∥ Phase 2~3 준비 (원격 Linux에서 병행)
 - **작업 브랜치**: `claude/music-analysis-app-planning-rsfa6x`
 - **분담**: `capture-macos/`·`api/session/`은 macOS 로컬 담당, 원격은 `core/`·문서 담당. 작업 전 반드시 pull
-- **다음 할 일 (macOS)**: `uv sync --extra transcribe`로 muscriptor 실설치·Metal 실행 검증 (HF 로그인 필요, 아래 메모) → 캡처된 WAV로 .mid 생성 (Phase 2 마일스톤)
+- **다음 할 일 (macOS)**: **사용자 작업 — HF 로그인** (`uvx --from huggingface_hub hf auth login` + muscriptor 모델 페이지에서 라이선스 동의) → 이후 캡처된 WAV로 .mid 생성 (Phase 2 마일스톤). muscriptor 설치·MPS 가용성은 검증 완료
 - **다음 할 일 (원격)**: 코드 진행 추출(MIDI 기반, chorder/music21), analyze 파이프라인 조립
 
 ## Phase 체크리스트
@@ -37,7 +37,8 @@
 - [x] muscriptor API 조사: `TranscriptionModel.load_model(size)` / `transcribe_to_midi()` / 스트리밍 `transcribe()` 이벤트 API(Phase 6에 사용)
 - [x] core/transcribe 래퍼 구현 (지연 import, 모델 캐시, 배치=large·스트림=small) + 스텁 기반 단위 테스트 4건
 - [x] Python 3.12 고정 (muscriptor가 3.10~3.12만 지원, `.python-version`)
-- [ ] **(macOS)** muscriptor 실설치·Metal 실행 검증 — HF gated 가중치: `hf auth login` + 모델 페이지 라이선스 동의 필요
+- [x] **(macOS)** muscriptor 실설치 (`uv sync --package musicna-core --extra transcribe`) — import·torch 2.2.2 MPS available 확인
+- [ ] **(macOS, 사용자)** HF 로그인 + muscriptor 가중치 라이선스 동의 → 모델 로드·Metal 전사 검증
 - [ ] 마일스톤: 캡처된 곡 WAV → .mid 생성, 피아노롤로 확인
 
 ### Phase 3 — 배치 분석
@@ -69,6 +70,7 @@
 | 2026-07-24 | 원격: 패키지명 PyPI 검증, muscriptor API 조사, core/transcribe 래퍼, MIDI 키 추정, Python 3.12 고정 | core 테스트 8건 통과. **muscriptor 가중치는 HF gated** — macOS에서 `hf auth login` 필요 |
 | 2026-07-25 | Phase 1 구현: Swift 캡처 헬퍼(SCK→float32 PCM stdout), 세션 매니저(pcm/metadata/silence/recorder/cli, TDD 19 passed), `musicna-session` CLI | 실기기 캡처는 터미널 화면 기록 권한(TCC) 거절로 미검증 — 권한 부여 후 Spotify 재생 검증 필요. macOS 26.5 / Swift 6.3.2 CLT |
 | 2026-07-25 | **Phase 1 마일스톤 검증 통과**: 화면 기록 권한 부여 후 Spotify 실캡처 → 트랙 전환 시 WAV+JSON 자동 분할 저장 확인 (2트랙). 버그 수정: AppleScript 변수명 `st`가 앱 tell 블록 내 스크립팅 용어와 충돌해 구문 오류 → `playerStateText`로 변경 | `st` 버그는 TCC 미검증 상태에서 잠복해 있던 것 — 실기기 검증의 중요성. 19 tests passed |
+| 2026-07-25 | Phase 2 진행: muscriptor 실설치(transcribe extra), import·MPS available 확인 | 가중치 다운로드는 HF 로그인+라이선스 동의 필요(사용자 작업) — 완료 후 WAV→MIDI 마일스톤 검증 |
 
 ## 협업 메모 (세션 재개/서브에이전트용)
 
