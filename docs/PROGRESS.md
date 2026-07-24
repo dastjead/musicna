@@ -6,11 +6,11 @@
 
 ## 현재 상태
 
-- **현재 Phase**: **Phase 2 완료** (WAV→MIDI 마일스톤 검증 통과) ∥ Phase 3 준비 (원격 Linux에서 병행)
+- **현재 Phase**: Phase 3 (코어 구현 완료, macOS 검증 대기) · Phase 4 (구현 완료, E2E 마일스톤 대기) ∥ Phase 5 준비
 - **작업 브랜치**: `claude/music-analysis-app-planning-rsfa6x`
 - **분담**: `capture-macos/`·`api/session/`은 macOS 로컬 담당, 원격은 `core/`·문서 담당. 작업 전 반드시 pull
-- **다음 할 일 (macOS)**: Phase 3 — `uv sync --extra analyze`로 allin1 실설치·구조/BPM 검증(실캡처 곡으로 `analyze_track` 실행), CLAP 무드 스파이크(무드 프롬프트 세트 확정 → `_analyze_moods` TODO 구현)
-- **다음 할 일 (원격)**: Phase 4 — AnalysisResult → SQLite 저장 함수(core/store 저장소 패턴), api /tracks를 DB 조회로 교체
+- **다음 할 일 (macOS)**: ① `uv run musicna-analyze` 실행 → 실캡처 곡의 전사·분석·DB 축적 E2E 검증 (Phase 4 마일스톤) ② `uv sync --extra analyze`로 allin1 구조/BPM 검증 ③ CLAP 무드 스파이크 → `_analyze_moods` TODO 구현
+- **다음 할 일 (원격)**: Phase 5 — 웹 UI (라이브러리 브라우저, 구조 타임라인, 코드 진행 뷰; /tracks API 사용)
 
 ## Phase 체크리스트
 
@@ -52,8 +52,11 @@
 - [ ] 마일스톤: 곡 1개 전체 분석 JSON
 
 ### Phase 4 — DB 저장
-- [ ] 파이프라인 → SQLite 연결, Alembic 마이그레이션
-- [ ] 마일스톤: 재생→분석→DB 자동 축적
+- [x] 저장소 패턴: `save_analysis`/`list_latest_analyses`/`has_analysis` (`core/store/repository.py`) — AnalysisResult↔DB 왕복, 재분석 이력 누적, 트랙 재사용. 테스트 3건
+- [x] api `/tracks`를 DB 조회로 교체 (env `MUSICNA_DB`, 기본 data/musicna.db) + TestClient 테스트 2건
+- [x] 배치 오케스트레이터 `musicna-analyze` (`api/batch.py`): WAV+JSON 스캔 → (필요시 전사) → 분석 → DB. 중복 건너뜀/--force, muscriptor 미설치 시 MIDI 없이 진행. 테스트 2건
+- [ ] Alembic 마이그레이션 (스키마 변경 발생 시 도입)
+- [ ] **(macOS)** 마일스톤: 재생→분석→DB 자동 축적 — 실캡처 곡으로 `uv run musicna-analyze` E2E 검증
 
 ### Phase 5 — 웹 UI
 - [ ] 라이브러리 브라우저, 구조 타임라인, 코드 진행 뷰
@@ -76,6 +79,7 @@
 | 2026-07-25 | Phase 2 진행: muscriptor 실설치(transcribe extra), import·MPS available 확인 | 가중치 다운로드는 HF 로그인+라이선스 동의 필요(사용자 작업) — 완료 후 WAV→MIDI 마일스톤 검증 |
 | 2026-07-25 | **Phase 2 마일스톤 검증 통과**: HF 로그인·라이선스 동의(사용자) → small/large 전사 성공, 피아노롤 확인. torch 2.2.2→2.13.0 (arm64 한정 상한 해제) | torch 2.2 MPS는 FFT 미구현(`aten::_fft_r2c`) — muscriptor의 `<2.3` 핀은 darwin x86_64 전용인데 uv가 공통 해석으로 2.2.2를 선택했던 것. large 전사: 28.5초 오디오 150초(가중치 다운로드 포함) |
 | 2026-07-25 | 원격: Phase 3 코드 진행 추출(MIDI 기반) + `analyze_track` 파이프라인 조립 | 30 tests passed. chorder 대신 music21 harmony 라벨링으로 base 의존성만으로 구현(합성 MIDI에서 C/F/G/C·Am7 정확). allin1/CLAP 미설치 시 자동 건너뜀 — macOS에서 extra 설치 후 실캡처 곡 검증 필요 |
+| 2026-07-25 | 원격: Phase 4 구현 — 저장소 패턴, /tracks DB 조회, `musicna-analyze` 배치 CLI | 37 tests passed. E2E 마일스톤(실캡처→DB)은 macOS에서 `uv run musicna-analyze`로 검증 필요 |
 
 ## 실기기 검증 상세 기록 — 2026-07-25 (macOS)
 
