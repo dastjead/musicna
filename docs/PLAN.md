@@ -77,16 +77,21 @@ musicna/
 │   ├── analyze/       #   구조·코드·키·무드 (WAV+MIDI → AnalysisResult)
 │   └── store/         #   SQLAlchemy 모델 + 저장소 패턴
 ├── api/               # FastAPI — core를 REST/WebSocket으로 노출 (유일한 코어 진입점)
+│   │                  #   Phase 7~: player.py(spotify_player 데몬 제어)·system.py(오케스트레이션)도 여기 위치
 ├── web/               # 웹 UI — api만 호출 (macOS 지식 없음)
-└── ios/ (추후)        # SwiftUI 앱 — api만 호출
+├── tui/ (Phase 7~)    # 터미널 UI(Textual) — api만 호출
+└── ios/, macos/ (추후)  # SwiftUI 앱 — api만 호출
 ```
+
+`spotify_player`(Homebrew, librespot 기반)는 이 트리에 속하지 않는 외부 바이너리 의존성이다 — api가 서브프로세스로 구동·제어할 뿐, 저장소에 코드로 포함되지 않는다.
 
 분리 원칙:
 
-- **core는 macOS API를 일절 import하지 않는다** — 캡처·AppleScript는 capture-macos와 세션 매니저(api 측)에만 존재. core는 "오디오 파일 in → 구조화된 결과 out"의 순수 함수적 파이프라인이라 Linux CI에서도 그대로 테스트 가능
-- **API 계약이 곧 클라이언트 경계** — 모든 응답 스키마를 Pydantic으로 정의하고 FastAPI의 OpenAPI 스펙 자동 생성 → 추후 iOS에서 Swift 클라이언트 코드 생성(swift-openapi-generator) 가능. 웹 UI가 쓰는 API를 iOS가 그대로 사용
-- **실시간 스트림도 동일 경계** — 실시간 MIDI/코드 미리보기는 WebSocket 이벤트 스키마(JSON)로 정의하므로 웹/iOS 어느 클라이언트든 구독 가능
-- **iOS에서의 역할**: Mac이 캡처·분석 서버(홈 네트워크에서 FastAPI 노출), iOS는 라이브러리 탐색·실시간 뷰어. 장기적으로 iOS 단독 경량 분석이 필요해지면 basic-pitch 계열의 CoreML 변환을 검토(별도 프로젝트 수준, 본 계획 범위 외)
+- **core는 macOS API를 일절 import하지 않는다** — 캡처·AppleScript·spotify_player 오케스트레이션은 capture-macos와 api(세션 매니저·player.py)에만 존재. core는 "오디오 파일 in → 구조화된 결과 out"의 순수 함수적 파이프라인이라 Linux CI에서도 그대로 테스트 가능
+- **API 계약이 곧 클라이언트 경계** — 모든 응답 스키마를 Pydantic으로 정의하고 FastAPI의 OpenAPI 스펙 자동 생성 → 추후 iOS/macOS에서 Swift 클라이언트 코드 생성(swift-openapi-generator) 가능. 웹·TUI가 쓰는 API를 모든 클라이언트가 그대로 재사용
+- **실시간 스트림도 동일 경계** — 실시간 MIDI/코드 미리보기는 WebSocket 이벤트 스키마(JSON)로 정의하므로 웹/TUI/iOS/macOS 어느 클라이언트든 구독 가능
+- **오케스트레이션도 API 뒤로 격리** — 백그라운드 프로세스(spotify_player 데몬, 캡처 세션) 기동/종료는 `api/system.py`가 소유. 클라이언트별 특수 역할은 로컬 실행 시의 부트스트랩(예: TUI가 api 서버 자체를 띄우는 것)뿐, 오케스트레이션 로직 자체는 중복 구현하지 않는다
+- **iOS·macOS에서의 역할**: Mac이 캡처·분석·재생 서버(홈 네트워크에서 FastAPI 노출), iOS/macOS 앱은 라이브러리 탐색·실시간 뷰어·재생 원격 제어. 장기적으로 iOS 단독 경량 분석이 필요해지면 basic-pitch 계열의 CoreML 변환을 검토(별도 프로젝트 수준, 본 계획 범위 외)
 
 ## DB 스키마 (초안)
 
@@ -106,7 +111,12 @@ musicna/
 - **Phase 4 — DB 저장**: SQLAlchemy 모델 + 파이프라인 연결. *마일스톤: 재생→분석→DB 자동 축적*
 - **Phase 5 — 웹 UI**: 라이브러리 브라우저(곡 목록, 구조 타임라인, 코드 진행 뷰), 통계(무드 분포 등)
 - **Phase 6 — 실시간 미리보기**: 5초 청크 muscriptor 스트리밍 + WebSocket으로 현재 재생곡의 MIDI/코드 라이브 표시 (하이브리드 완성)
-- **이후 — iOS**: FastAPI를 백엔드로 하는 뷰어 앱(SwiftUI). iOS 샌드박스상 타 앱 오디오 캡처 불가하므로 캡처는 Mac 담당
+- **Phase 7 — 재생 엔진·오케스트레이션**: `spotify_player`(Homebrew, librespot 기반) 데몬을 api가 서브프로세스로 구동·제어(`/player/*`), 오케스트레이션 엔드포인트(`/system/*`)로 데몬·세션 기동을 API화. "spotify" 소스 메타데이터 폴링을 AppleScript에서 spotify_player 상태 조회로 교체(Apple Music 소스는 무수정). 최소 TUI 셸(플레이어 패널·세션 상태). 설계: [docs/superpowers/specs/2026-07-26-tui-player-orchestration-design.md](superpowers/specs/2026-07-26-tui-player-orchestration-design.md). *마일스톤: TUI에서 재생/일시정지/다음곡/볼륨 조작 시 실제 Spotify 재생이 반응하고, 기존 캡처·트랙 분할에 그대로 반영됨*
+- **Phase 8 — TUI 기능 동등화**: 검색·플레이리스트(`/player/search`, `/player/playlists`) 추가, 기존 `/ws/live`·`/tracks`를 재사용해 실시간 분석 뷰(코드·피아노 롤)와 라이브러리 브라우저를 TUI에 추가. *마일스톤: 웹 UI로 할 수 있는 모든 열람 작업을 TUI에서도 수행 가능*
+- **Phase 9 — macOS 네이티브 앱**: 웹·TUI와 동일하게 `api/`만 호출하는 독립 클라이언트. 같은 패턴(기능 동등화, 단계별 실기기 검증)을 따름
+- **Phase 10 — iOS 앱**: `api/`만 호출하는 뷰어 겸 원격 제어 앱(SwiftUI). Mac이 캡처·분석·재생 서버 역할(iOS 샌드박스상 타 앱 오디오 캡처 불가하므로 캡처는 계속 Mac 담당). 웹·TUI·macOS 앱과 동일한 API 계약을 재사용하는 같은 패턴을 따름
+
+모든 클라이언트(웹·TUI·macOS·iOS 앱)는 독립된 인터페이스이되 `api/`가 제공하는 기능은 동등하게 갖춘다 — 어느 하나에만 있는 기능을 만들지 않는다.
 
 ## 리스크 및 유의점
 
