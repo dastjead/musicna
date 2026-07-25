@@ -49,3 +49,21 @@ def stream_events(
     """
     model = _load_model(model_size)
     yield from model.transcribe(str(audio_path), instruments=instruments)
+
+
+def stream_chunk_events(
+    samples: Any,  # np.ndarray float32 mono
+    sample_rate: int,
+    model_size: str = "small",
+    instruments: list[str] | None = None,
+) -> Iterator[Any]:
+    """메모리 상의 PCM 청크(모노 float32)를 전사해 이벤트를 산출한다 — 실시간 파이프라인용.
+
+    muscriptor는 (tensor, sample_rate) 튜플 입력을 지원한다. 청크 내 시각은 0부터이므로
+    호출 측(musicna-live)이 청크 시작 오프셋을 더해 트랙 기준 시각으로 환산한다.
+    """
+    import torch
+
+    model = _load_model(model_size)
+    tensor = torch.from_numpy(samples)
+    yield from model.transcribe((tensor, sample_rate), instruments=instruments)

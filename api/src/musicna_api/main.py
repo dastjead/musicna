@@ -14,14 +14,16 @@ from collections.abc import Iterator
 from functools import lru_cache
 from pathlib import Path
 
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 
-from musicna_core.models import AnalysisResult
+from musicna_api.live import LiveBroadcaster
+from musicna_core.models import AnalysisResult, LiveEvent, live_event_adapter
 from musicna_core.store import create_session_factory, list_latest_analyses
 
 app = FastAPI(title="musicna", version="0.1.0")
+broadcaster = LiveBroadcaster()
 
 
 @lru_cache(maxsize=1)
@@ -43,6 +45,34 @@ def health() -> dict[str, str]:
 def list_tracks(db: Session = Depends(get_db)) -> list[AnalysisResult]:
     """트랙별 최신 분석 결과, 캡처 시각 역순."""
     return list_latest_analyses(db)
+
+
+# ── 실시간 미리보기 (Phase 6) ──────────────────────────────────────────
+
+
+@app.post("/live/ingest", status_code=202)
+async def live_ingest(events: list[LiveEvent]) -> dict[str, int]:  # async: 이벤트 루프에서 큐 조작
+    """전사 프로세스(musicna-live)가 보내는 이벤트를 검증해 WS 구독자에게 중계한다.
+
+    로컬(개인용) 사용 전제 — 서버를 외부에 노출한다면 인증을 붙일 것.
+    """
+    for event in events:
+        broadcaster.publish(live_event_adapter.dump_json(event).decode())
+    return {"accepted": len(events), "subscribers": broadcaster.subscriber_count}
+
+
+@app.websocket("/ws/live")
+async def ws_live(ws: WebSocket) -> None:
+    """실시간 이벤트 스트림 — LiveEvent JSON을 순서대로 내보낸다 (웹/iOS 공용 계약)."""
+    await ws.accept()
+    q = broadcaster.subscribe()
+    try:
+        while True:
+            await ws.send_text(await q.get())
+    except WebSocketDisconnect:
+        pass
+    finally:
+        broadcaster.unsubscribe(q)
 
 
 # 웹 UI 정적 서빙 — API 라우트 등록 뒤에 마운트해야 /tracks 등이 우선한다.

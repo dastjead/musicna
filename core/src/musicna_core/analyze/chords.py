@@ -59,6 +59,25 @@ def _label_chord(pcs_by_weight: list[int], bass_pc: int) -> str | None:
     return str(figure)
 
 
+def label_weighted_pcs(weights: dict[int, float], bass_pc: int, min_tones: int = 2) -> tuple[str, float] | None:
+    """가중치 피치클래스 집계에서 (코드 라벨, 신뢰도)를 판정한다. 배치·실시간 공용.
+
+    신뢰도 = 채택된 구성음 가중치 합 / 전체 가중치 합. 판정 불가면 None.
+    """
+    if not weights:
+        return None
+    max_w = max(weights.values())
+    candidates = sorted(weights.items(), key=lambda kv: -kv[1])
+    tones = [pc for pc, w in candidates if w >= max_w * _PC_WEIGHT_THRESHOLD][:_MAX_CHORD_TONES]
+    if len(tones) < min_tones:
+        return None
+    label = _label_chord(tones, bass_pc=bass_pc)
+    if label is None:
+        return None
+    confidence = round(sum(weights[pc] for pc in tones) / sum(weights.values()), 4)
+    return label, confidence
+
+
 def extract_chords_from_midi(
     midi_path: Path,
     window_s: float = 1.0,
@@ -88,16 +107,10 @@ def extract_chords_from_midi(
         if not weights or lowest is None:
             continue
 
-        max_w = max(weights.values())
-        candidates = sorted(weights.items(), key=lambda kv: -kv[1])
-        tones = [pc for pc, w in candidates if w >= max_w * _PC_WEIGHT_THRESHOLD][:_MAX_CHORD_TONES]
-        if len(tones) < min_tones:
+        labeled = label_weighted_pcs(weights, bass_pc=lowest[0] % 12, min_tones=min_tones)
+        if labeled is None:
             continue
-
-        label = _label_chord(tones, bass_pc=lowest[0] % 12)
-        if label is None:
-            continue
-        confidence = round(sum(weights[pc] for pc in tones) / sum(weights.values()), 4)
+        label, confidence = labeled
 
         if events and events[-1].chord == label and abs(events[-1].end_s - w_start) < 1e-6:
             events[-1] = events[-1].model_copy(update={"end_s": w_end})  # 병합

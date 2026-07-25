@@ -6,8 +6,9 @@
 
 from datetime import datetime
 from enum import StrEnum
+from typing import Annotated, Literal, Union
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, TypeAdapter
 
 
 class CaptureSource(StrEnum):
@@ -56,6 +57,53 @@ class ChordEvent(BaseModel):
 class MoodTag(BaseModel):
     tag: str  # 예: "energetic", "melancholic"
     score: float = Field(ge=0.0, le=1.0)
+
+
+# ── 실시간 미리보기 (Phase 6) — WebSocket /ws/live 이벤트 계약 ──────────────
+# 웹/iOS 어느 클라이언트든 같은 JSON 스키마를 구독한다. type 필드로 판별.
+
+
+class LiveTrackStarted(BaseModel):
+    type: Literal["track_started"] = "track_started"
+    track: "TrackMeta"
+
+
+class LiveNoteOn(BaseModel):
+    type: Literal["note_on"] = "note_on"
+    index: int  # note_off와 짝을 맞추는 전사 스트림 내 노트 식별자
+    pitch: int  # MIDI 피치 (0~127)
+    instrument: str | None = None
+    start_s: float  # 트랙 시작 기준 초
+
+
+class LiveNoteOff(BaseModel):
+    type: Literal["note_off"] = "note_off"
+    index: int
+    end_s: float
+
+
+class LiveChord(BaseModel):
+    type: Literal["chord"] = "chord"
+    chord: str
+    start_s: float
+    confidence: float | None = Field(default=None, ge=0.0, le=1.0)
+
+
+class LiveProgress(BaseModel):
+    type: Literal["progress"] = "progress"
+    chunk_start_s: float  # 처리 완료된 청크의 시작 시각
+    chunk_end_s: float
+
+
+class LiveTrackEnded(BaseModel):
+    type: Literal["track_ended"] = "track_ended"
+
+
+LiveEvent = Annotated[
+    Union[LiveTrackStarted, LiveNoteOn, LiveNoteOff, LiveChord, LiveProgress, LiveTrackEnded],
+    Field(discriminator="type"),
+]
+live_event_adapter: TypeAdapter[LiveEvent] = TypeAdapter(LiveEvent)
 
 
 class AnalysisResult(BaseModel):

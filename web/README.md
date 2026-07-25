@@ -19,6 +19,17 @@ uv run uvicorn musicna_api.main:app --reload   # → http://127.0.0.1:8000/
 - 접근성: 구간/코드의 표 뷰(접이식), 라이트/다크 자동(`prefers-color-scheme`)
 - 색상은 dataviz 검증 팔레트 사용 — 구간 라벨은 고정 색 매핑(verse=파랑, chorus=주황 등, 순환 없음)
 
-## Phase 6 예정
+## 실시간 뷰 (`live.html`)
 
-실시간 미리보기 뷰 — WebSocket으로 현재 재생곡의 MIDI/코드 이벤트 라이브 표시.
+`/ws/live` WebSocket을 구독해 현재 재생 중인 곡의 전사 이벤트를 라이브 표시한다:
+
+- **현재 코드** 대형 표시 + 최근 코드 히스토리
+- **피아노 롤** — 최근 30초 스크롤 canvas (울리는 중인 노트는 현재 시각까지 연장)
+- 자동 재접속, 트랙 시작 시 초기화
+
+이벤트 공급 (macOS):
+
+```sh
+uv run uvicorn musicna_api.main:app          # 터미널 1: api 서버
+./capture-macos/.build/release/musicna-capture | uv run musicna-live   # 터미널 2
+```

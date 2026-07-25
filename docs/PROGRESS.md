@@ -9,8 +9,8 @@
 - **현재 Phase**: **Phase 3·4 마일스톤 검증 통과** (chroma 교차 검증만 잔여) ∥ Phase 5 준비
 - **작업 브랜치**: `claude/music-analysis-app-planning-rsfa6x`
 - **분담**: `capture-macos/`·`api/session/`은 macOS 로컬 담당, 원격은 `core/`·문서 담당. 작업 전 반드시 pull
-- **다음 할 일 (macOS)**: ① 캡처 레벨 정상 곡으로 트랙 추가 축적(002는 준무음 캡처였음) ② 웹 UI 확인 ③ `musicna-analyze --force`로 재분석 → 코드가 MERGED(교차 검증)로 채워지는지 실캡처 곡 확인 (librosa는 analyze extra에 이미 포함)
-- **다음 할 일 (원격)**: Phase 6 — WebSocket 이벤트 스키마 설계 + 실시간 미리보기 파이프라인 (전사 스트림은 macOS 검증 필요)
+- **다음 할 일 (macOS)**: ① Phase 6 실기기 검증 — `uv run uvicorn musicna_api.main:app`(터미널 1) + `./capture-macos/.build/release/musicna-capture | uv run musicna-live`(터미널 2) + Spotify 재생 → http://127.0.0.1:8000/live.html 확인, 전사 지연 측정 ② `musicna-analyze --force` 재분석으로 MERGED 코드 확인 ③ 정상 레벨 곡 추가 축적
+- **다음 할 일 (원격)**: 잔여 항목 정리(README 갱신, Alembic 등) 또는 iOS 뷰어 설계 착수
 
 ## Phase 체크리스트
 
@@ -67,7 +67,14 @@
 - [ ] (선택) 라이브러리 통계 화면 — 무드 분포·키 분포 (트랙이 쌓인 뒤)
 
 ### Phase 6 — 실시간 미리보기
-- [ ] 5초 청크 스트리밍 + WebSocket 라이브 뷰
+- [x] WS 이벤트 계약: `LiveEvent` discriminated union (`core/models.py`) — track_started/note_on/note_off/chord/progress/track_ended, 웹·iOS 공용
+- [x] 실시간 코드 추정기 `LiveChordTracker` (`core/analyze/live_chords.py`) — 롤링 창, 배치와 동일한 라벨링 로직 공유(`label_weighted_pcs` 리팩터), 변화 시점만 산출
+- [x] api: `LiveBroadcaster`(asyncio pub/sub) + `POST /live/ingest` + `GET /ws/live` (uvicorn용 websockets 의존성 추가)
+- [x] `musicna-live` CLI (`api/live_cli.py`): 캡처 PCM stdin → 5초 청크 모노 다운믹스 → muscriptor(small) 전사 → 이벤트 변환·코드 추정 → ingest POST. 전송 실패에도 루프 지속
+- [x] core/transcribe: 메모리 청크 전사 `stream_chunk_events` ((tensor, sr) 입력)
+- [x] 웹 실시간 뷰 `live.html`: 현재 코드 대형 표시+히스토리, 30초 스크롤 피아노 롤(canvas), 자동 재접속
+- [x] 검증(원격): 테스트 12건 + Playwright E2E(시뮬레이션 이벤트 주입 → C/F/G7 표시·피아노 롤 렌더 확인)
+- [ ] **(macOS)** 실기기 마일스톤: `musicna-capture | uv run musicna-live` + Spotify 재생 → 라이브 뷰 확인. 청크 5초당 전사 소요(지연) 측정, small 모델 실시간성 판단
 
 ### 이후 — iOS 뷰어 앱
 - [ ] SwiftUI + OpenAPI 생성 클라이언트
@@ -90,6 +97,7 @@
 | 2026-07-25 | 원격 동기화: Linux 호환 수정 2건 — ① natten 정적 메타데이터 선언(`[[tool.uv.dependency-metadata]]`)으로 Linux uv sync 실패 해소(크로스 플랫폼 해석이 Darwin 전용 natten sdist를 빌드하려던 문제) ② `_patch_natten_torch_compat`가 torch 부재를 허용하도록 수정 | Linux에서 40 passed, 1 skipped. macOS 설치 동작에는 영향 없음 |
 | 2026-07-25 | 원격: Phase 5 웹 UI 구현 — 라이브러리 브라우저·구조 타임라인·코드 진행 뷰·무드 바, api 정적 서빙 | 42 passed, 1 skipped. Playwright 렌더 검수(라이트/다크/강등/툴팁) 완료. macOS에서 실캡처 DB로 확인 필요 |
 | 2026-07-25 | 원격: 코드 진행 chroma 교차 검증 — chords_audio(템플릿 매칭) + merge_chord_tracks, analyze_track 연결 | 52 passed, 1 skipped. 합성 사인파 3화음에서 C/F/G/C·Am 정확, MIDI·오디오 일치 시 MERGED(신뢰도 보너스). `chroma` extra 신설, dev 그룹에 librosa 추가(테스트용) |
+| 2026-07-25 | 원격: Phase 6 구현 — LiveEvent 계약, LiveChordTracker, WS 브로드캐스트(/live/ingest→/ws/live), `musicna-live` CLI, 웹 라이브 뷰(코드+피아노 롤) | 63 passed, 1 skipped. Playwright E2E(이벤트 시뮬레이션)로 렌더 확인. **발견**: 기본 uvicorn에 WS 백엔드 없음 → websockets 의존성 추가. muscriptor 실전사 스트림은 macOS 검증 대기 |
 
 ## 실기기 검증 상세 기록 — 2026-07-25 (macOS)
 

@@ -7,12 +7,14 @@ dependencies = [
     "musicna-core",
     "fastapi>=0.111",
     "uvicorn>=0.30",
+    "websockets>=12",  # uvicorn의 /ws/live 지원 (기본 uvicorn에는 WS 백엔드 없음)
     "numpy>=1.26",  # 세션 매니저 PCM 처리
 ]
 
 [project.scripts]
 musicna-session = "musicna_api.session.cli:main"
 musicna-analyze = "musicna_api.batch:main"
+musicna-live = "musicna_api.live_cli:main"
 
 [dependency-groups]
 dev = [
