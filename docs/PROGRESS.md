@@ -6,11 +6,11 @@
 
 ## 현재 상태
 
-- **현재 Phase**: **Phase 3·4 마일스톤 검증 통과** (chroma 교차 검증만 잔여) ∥ Phase 5 준비
+- **현재 Phase**: **Phase 0~6 전체 마일스톤 실기기 검증 통과**. 잔여는 선택 항목(무드/키 통계 화면, Alembic)과 iOS 뷰어
 - **작업 브랜치**: `claude/music-analysis-app-planning-rsfa6x`
 - **분담**: `capture-macos/`·`api/session/`은 macOS 로컬 담당, 원격은 `core/`·문서 담당. 작업 전 반드시 pull
-- **다음 할 일 (macOS)**: ① Phase 6 실기기 검증 — `uv run uvicorn musicna_api.main:app`(터미널 1) + `./capture-macos/.build/release/musicna-capture | uv run musicna-live`(터미널 2) + Spotify 재생 → http://127.0.0.1:8000/live.html 확인, 전사 지연 측정 ② `musicna-analyze --force` 재분석으로 MERGED 코드 확인 ③ 정상 레벨 곡 추가 축적
-- **다음 할 일 (원격)**: 잔여 항목 정리(README 갱신, Alembic 등) 또는 iOS 뷰어 설계 착수
+- **다음 할 일 (macOS)**: ① 정상 레벨 곡 추가 캡처·축적(현재 DB 2트랙, 1트랙만 완전 분석) ② (선택) 라이브러리 통계 화면용 데이터 축적
+- **다음 할 일 (원격)**: iOS 뷰어 설계 착수(SwiftUI + OpenAPI 클라이언트), 또는 Alembic 마이그레이션 도입
 
 ## Phase 체크리스트
 
@@ -63,7 +63,7 @@
 - [x] 라이브러리 브라우저 (`web/` 바닐라 HTML/CSS/JS, 빌드 도구 없음): 트랙 목록(키·BPM·무드 배지), 스탯 타일, 구조 타임라인(직접 라벨+범례+시간축), 코드 진행 레인(호버 툴팁)+텍스트 스트립, 무드 점수 바, 표 뷰(접근성), 라이트/다크
 - [x] api가 `web/` 정적 서빙 (`MUSICNA_WEB`, API 라우트 우선) + 테스트 2건
 - [x] 렌더 검수: 데모 DB 시드 → Playwright 스크린샷(라이트/다크/강등 상태/툴팁) 확인. dataviz 팔레트 검증 통과(구간 라벨 고정 색 매핑)
-- [ ] **(macOS)** 실캡처 DB로 브라우저 확인 (`uv run uvicorn musicna_api.main:app` → http://127.0.0.1:8000/)
+- [x] **(macOS)** 실캡처 DB로 브라우저 확인 — 트랙 목록·BPM/키 배지·구조 타임라인·코드 진행 레인·무드 바 전부 정상 렌더 (Playwright 스크린샷 확인, 콘솔 오류 없음)
 - [ ] (선택) 라이브러리 통계 화면 — 무드 분포·키 분포 (트랙이 쌓인 뒤)
 
 ### Phase 6 — 실시간 미리보기
@@ -74,7 +74,7 @@
 - [x] core/transcribe: 메모리 청크 전사 `stream_chunk_events` ((tensor, sr) 입력)
 - [x] 웹 실시간 뷰 `live.html`: 현재 코드 대형 표시+히스토리, 30초 스크롤 피아노 롤(canvas), 자동 재접속
 - [x] 검증(원격): 테스트 12건 + Playwright E2E(시뮬레이션 이벤트 주입 → C/F/G7 표시·피아노 롤 렌더 확인)
-- [ ] **(macOS)** 실기기 마일스톤: `musicna-capture | uv run musicna-live` + Spotify 재생 → 라이브 뷰 확인. 청크 5초당 전사 소요(지연) 측정, small 모델 실시간성 판단
+- [x] **(macOS)** 실기기 마일스톤 검증 통과: `musicna-capture | uv run musicna-live` + Spotify 실재생 → live.html에 실시간 코드(예: Gm7/B-)·히스토리·피아노 롤(109노트) 렌더 확인. 청크 17개 평균 1.79s(5초 청크 대비 2.8배 여유), small 모델 실시간성 확보 — 상세는 아래 검증 기록
 
 ### 이후 — iOS 뷰어 앱
 - [ ] SwiftUI + OpenAPI 생성 클라이언트
@@ -99,6 +99,7 @@
 | 2026-07-25 | 원격: 코드 진행 chroma 교차 검증 — chords_audio(템플릿 매칭) + merge_chord_tracks, analyze_track 연결 | 52 passed, 1 skipped. 합성 사인파 3화음에서 C/F/G/C·Am 정확, MIDI·오디오 일치 시 MERGED(신뢰도 보너스). `chroma` extra 신설, dev 그룹에 librosa 추가(테스트용) |
 | 2026-07-25 | 원격: Phase 6 구현 — LiveEvent 계약, LiveChordTracker, WS 브로드캐스트(/live/ingest→/ws/live), `musicna-live` CLI, 웹 라이브 뷰(코드+피아노 롤) | 63 passed, 1 skipped. Playwright E2E(이벤트 시뮬레이션)로 렌더 확인. **발견**: 기본 uvicorn에 WS 백엔드 없음 → websockets 의존성 추가. muscriptor 실전사 스트림은 macOS 검증 대기 |
 | 2026-07-25 | 원격: 문서 최신화 — README 전면 갱신(macOS 사용법 ①수집→②분석→③웹UI→④실시간, 개발 안내), PLAN에 현황 배너 추가 | Phase 0~6 구현 완료 시점의 문서 정리. 남은 로드맵: Phase 5·6 실기기 확인, iOS 뷰어 |
+| 2026-07-26 | **Phase 5·6 실기기 마일스톤 검증 통과**(macOS): ① `musicna-analyze --force` 재분석으로 chroma 교차 검증 확인(001에 MERGED 코드 12개 발생) ② 실캡처 DB로 웹 라이브러리 브라우저 렌더 확인(Playwright) ③ Spotify 실재생 캡처→`musicna-live`→live.html 실시간 코드·피아노 롤 렌더 확인 | Phase 0~6 전체 마일스톤 실기기 검증 완료. 청크 처리 평균 1.79s(최대 7.35s, 동시 실행 중이던 Playwright 스크린샷 스크립트의 CPU 경합으로 추정) — 5초 예산 내 여유 확보 |
 
 ## 실기기 검증 상세 기록 — 2026-07-25 (macOS)
 
@@ -168,6 +169,16 @@ laion-clap도 torchvision을 미선언 런타임 의존 → mood extra에 추가
 - 같은 입력에서 allin1이 `bpm=None` 반환 → `float(None)` 크래시 → None 허용. **교훈: 실데이터의 극단값(준무음)이 합성 fixture에는 없던 경로를 드러냄**
 
 **최종 E2E 결과** (`uv run musicna-analyze --force`, 전 extra 설치): 분석 2·실패 0 — 001은 bpm 118.0 / D major / 코드 23 / 구간 2(intro) / 무드 5 전 항목, 002는 구간·무드만(키/코드/bpm은 정직하게 NULL). 재실행 시 건너뜀 2, `/tracks` API가 DB 내용 그대로 반환
+
+### Phase 3(chroma)·5·6 — 원격 구현 실기기 검증 (2026-07-26)
+
+**chroma 교차 검증**: 원격이 붙인 `chords_audio.py`+`merge_chord_tracks()`를 실캡처로 재분석(`musicna-analyze --force`). 001 트랙 코드가 23개→27개로 늘고 `source` 분포가 audio 2·merged 12·midi 13으로 갈림 — MIDI·오디오가 일치한 구간은 MERGED(신뢰도↑), 불일치는 고신뢰 쪽 채택이 실데이터에서도 동작 확인. 002(준무음)는 MIDI가 없어 전량 AUDIO(8개, 평균 신뢰도 0.656)
+
+**웹 UI 실캡처 확인**: `uv run uvicorn musicna_api.main:app` 기동 후 Playwright로 `/`·`/live.html` 렌더·콘솔 로그 점검. 트랙 목록·BPM/키/무드 배지·구조 타임라인·코드 진행 레인·무드 바 전부 실DB 데이터로 정상 렌더, 콘솔 오류 0건. (참고: 사이드바는 키를 "D 장조"처럼 한국어 로캘로 표시 — "D major" 문자열 매칭으로 착각해 잠깐 놓칠 뻔한 부분, 실제로는 정상)
+
+**Phase 6 실기기 마일스톤**: `./capture-macos/.build/release/musicna-capture | uv run musicna-live` + Spotify 실재생(森川美穂 ブルーウォーター) → uvicorn `/ws/live` 구독자에 실시간 이벤트 도달, live.html에 현재 코드(Gm7/B- 등)·진행 히스토리·30초 피아노 롤에 실제 노트 렌더 확인. 청크 17개 처리 시간 평균 1.79s(최소 0.63s·최대 7.35s) — 5초 청크 대비 평균 2.8배 여유로 small 모델 실시간성 확보. 최대치(7.35s)는 같은 시각 실행 중이던 Playwright 스크린샷 스크립트의 CPU 경합으로 추정, 단독 실행 시 재측정 권장
+
+**주의**: `LiveBroadcaster`는 in-memory pub/sub이라 새 구독자(페이지를 새로고침 등)는 과거 이벤트를 못 받는다 — 페이지를 연 시점 이후의 이벤트만 보인다(설계 의도, 버그 아님). 첫 로드 시 "노트 0"으로 보여도 정상이며, 곡이 계속 재생되면 채워진다
 
 ## 협업 메모 (세션 재개/서브에이전트용)
 
