@@ -70,3 +70,112 @@ def test_parse_devices_returns_list():
 
 def test_parse_devices_empty_list():
     assert parse_devices_json("[]") == []
+
+
+# Task 2: CLI wrapper tests
+import subprocess
+
+import pytest
+
+from musicna_api.player import (
+    SpotifyPlayerError, connect_device, get_status, list_devices,
+    next_track, pause, play, play_pause, previous_track, set_volume,
+)
+
+
+class _FakeCompleted:
+    def __init__(self, stdout="", stderr="", returncode=0):
+        self.stdout, self.stderr, self.returncode = stdout, stderr, returncode
+
+
+@pytest.fixture
+def fake_run(monkeypatch):
+    calls: list[list[str]] = []
+
+    def _fake(cmd, **kwargs):
+        calls.append(cmd)
+        if cmd[1:] == ["get", "key", "devices"]:
+            return _FakeCompleted(stdout='[{"id":"d1","name":"spotify-player","is_active":true,"volume_percent":50}]')
+        if cmd[1:] == ["get", "key", "playback"]:
+            return _FakeCompleted(stdout="null")
+        return _FakeCompleted(stdout="")
+
+    monkeypatch.setattr(subprocess, "run", _fake)
+    monkeypatch.setattr("shutil.which", lambda name: "/opt/homebrew/bin/spotify_player")
+    return calls
+
+
+def test_play_invokes_playback_play(fake_run):
+    play()
+    assert fake_run[-1][1:] == ["playback", "play"]
+
+
+def test_pause_invokes_playback_pause(fake_run):
+    pause()
+    assert fake_run[-1][1:] == ["playback", "pause"]
+
+
+def test_play_pause_invokes_playback_play_pause(fake_run):
+    play_pause()
+    assert fake_run[-1][1:] == ["playback", "play-pause"]
+
+
+def test_next_track_invokes_playback_next(fake_run):
+    next_track()
+    assert fake_run[-1][1:] == ["playback", "next"]
+
+
+def test_previous_track_invokes_playback_previous(fake_run):
+    previous_track()
+    assert fake_run[-1][1:] == ["playback", "previous"]
+
+
+def test_set_volume_invokes_playback_volume(fake_run):
+    set_volume(42)
+    assert fake_run[-1][1:] == ["playback", "volume", "42"]
+
+
+def test_set_volume_rejects_out_of_range():
+    with pytest.raises(ValueError):
+        set_volume(150)
+
+
+def test_connect_device_invokes_connect_with_id(fake_run):
+    connect_device("d1")
+    assert fake_run[-1][1:] == ["connect", "--id", "d1"]
+
+
+def test_list_devices_parses_output(fake_run):
+    devices = list_devices()
+    assert devices[0].id == "d1"
+    assert fake_run[-1][1:] == ["get", "key", "devices"]
+
+
+def test_get_status_returns_none_when_nothing_playing(fake_run):
+    assert get_status() is None
+    assert fake_run[-1][1:] == ["get", "key", "playback"]
+
+
+def test_missing_binary_raises_helpful_error(monkeypatch):
+    monkeypatch.setattr("shutil.which", lambda name: None)
+    with pytest.raises(SpotifyPlayerError, match="brew install spotify_player"):
+        play()
+
+
+def test_nonzero_exit_raises_with_stderr(monkeypatch):
+    monkeypatch.setattr("shutil.which", lambda name: "/opt/homebrew/bin/spotify_player")
+    monkeypatch.setattr(subprocess, "run",
+                         lambda cmd, **kw: _FakeCompleted(stderr="no active device", returncode=1))
+    with pytest.raises(SpotifyPlayerError, match="no active device"):
+        play()
+
+
+def test_timeout_raises_spotify_player_error(monkeypatch):
+    monkeypatch.setattr("shutil.which", lambda name: "/opt/homebrew/bin/spotify_player")
+
+    def _timeout(cmd, **kw):
+        raise subprocess.TimeoutExpired(cmd, kw.get("timeout", 5))
+
+    monkeypatch.setattr(subprocess, "run", _timeout)
+    with pytest.raises(SpotifyPlayerError, match="응답 시간 초과"):
+        play()

@@ -72,3 +72,64 @@ def parse_devices_json(raw: str) -> list[PlayerDevice]:
         )
         for d in data
     ]
+
+
+import shutil
+import subprocess
+
+
+class SpotifyPlayerError(Exception):
+    """spotify_player CLI 호출 실패(비정상 종료·타임아웃·미설치)."""
+
+
+def _run_cli(*args: str, timeout: float = 5.0) -> str:
+    binary = shutil.which("spotify_player")
+    if binary is None:
+        raise SpotifyPlayerError(
+            "spotify_player가 설치되지 않았습니다. `brew install spotify_player`로 설치하세요."
+        )
+    try:
+        proc = subprocess.run([binary, *args], capture_output=True, text=True, timeout=timeout)
+    except subprocess.TimeoutExpired as e:
+        raise SpotifyPlayerError(f"spotify_player 응답 시간 초과: {' '.join(args)}") from e
+    if proc.returncode != 0:
+        raise SpotifyPlayerError(proc.stderr.strip() or f"spotify_player 명령 실패: {' '.join(args)}")
+    return proc.stdout
+
+
+def play() -> None:
+    _run_cli("playback", "play")
+
+
+def pause() -> None:
+    _run_cli("playback", "pause")
+
+
+def play_pause() -> None:
+    _run_cli("playback", "play-pause")
+
+
+def next_track() -> None:
+    _run_cli("playback", "next")
+
+
+def previous_track() -> None:
+    _run_cli("playback", "previous")
+
+
+def set_volume(percent: int) -> None:
+    if not -100 <= percent <= 100:
+        raise ValueError(f"percent는 -100~100 범위여야 합니다: {percent}")
+    _run_cli("playback", "volume", str(percent))
+
+
+def list_devices() -> list[PlayerDevice]:
+    return parse_devices_json(_run_cli("get", "key", "devices"))
+
+
+def connect_device(device_id: str) -> None:
+    _run_cli("connect", "--id", device_id)
+
+
+def get_status() -> PlayerStatus | None:
+    return parse_playback_json(_run_cli("get", "key", "playback"))
