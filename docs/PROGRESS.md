@@ -98,6 +98,7 @@
 | 2026-07-25 | 원격: Phase 5 웹 UI 구현 — 라이브러리 브라우저·구조 타임라인·코드 진행 뷰·무드 바, api 정적 서빙 | 42 passed, 1 skipped. Playwright 렌더 검수(라이트/다크/강등/툴팁) 완료. macOS에서 실캡처 DB로 확인 필요 |
 | 2026-07-25 | 원격: 코드 진행 chroma 교차 검증 — chords_audio(템플릿 매칭) + merge_chord_tracks, analyze_track 연결 | 52 passed, 1 skipped. 합성 사인파 3화음에서 C/F/G/C·Am 정확, MIDI·오디오 일치 시 MERGED(신뢰도 보너스). `chroma` extra 신설, dev 그룹에 librosa 추가(테스트용) |
 | 2026-07-25 | 원격: Phase 6 구현 — LiveEvent 계약, LiveChordTracker, WS 브로드캐스트(/live/ingest→/ws/live), `musicna-live` CLI, 웹 라이브 뷰(코드+피아노 롤) | 63 passed, 1 skipped. Playwright E2E(이벤트 시뮬레이션)로 렌더 확인. **발견**: 기본 uvicorn에 WS 백엔드 없음 → websockets 의존성 추가. muscriptor 실전사 스트림은 macOS 검증 대기 |
+| 2026-07-25 | 원격: 문서 최신화 — README 전면 갱신(macOS 사용법 ①수집→②분석→③웹UI→④실시간, 개발 안내), PLAN에 현황 배너 추가 | Phase 0~6 구현 완료 시점의 문서 정리. 남은 로드맵: Phase 5·6 실기기 확인, iOS 뷰어 |
 
 ## 실기기 검증 상세 기록 — 2026-07-25 (macOS)
 
