@@ -1,2 +1,7 @@
 [tool.uv.workspace]
 members = ["core", "api"]
+
+[tool.uv]
+# natten 0.14.x sdist는 빌드 시 torch를 요구하면서 build-system.requires에 선언하지 않음
+# → venv의 torch(transcribe extra)를 그대로 쓰도록 빌드 격리 해제
+no-build-isolation-package = ["natten"]

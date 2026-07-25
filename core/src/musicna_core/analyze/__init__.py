@@ -21,28 +21,61 @@ logger = logging.getLogger(__name__)
 __all__ = ["analyze_track", "extract_chords_from_midi", "estimate_key_from_midi"]
 
 
+def _patch_natten_torch_compat() -> None:
+    """natten 0.15.1은 torch 2.13에서 제거된 `torch.cuda._device_t`를 import한다 — 타입 별칭 재주입.
+
+    natten 0.15는 allin1이 쓰는 구 함수형 API(natten1dqkrpb 등)를 가진 마지막 PyPI 계열이라
+    업그레이드로는 해결 불가 (0.17에서 구 API 제거). torch가 별칭을 되살리면 no-op."""
+    import torch.cuda
+
+    if not hasattr(torch.cuda, "_device_t"):
+        from typing import Union
+
+        torch.cuda._device_t = Union[torch.device, int, str, None]  # type: ignore[attr-defined]
+
+
 def _analyze_structure(audio_path: Path) -> tuple[float | None, list[Section], str | None]:
     """allin1 구조 분석. 미설치/실패 시 (None, [], None)."""
     try:
+        _patch_natten_torch_compat()
         import allin1
     except ImportError:
         logger.info("allin1 미설치 — 구조/BPM 분석 건너뜀 (uv sync --extra analyze)")
         return None, [], None
-    result = allin1.analyze(str(audio_path))
+    try:
+        # multiprocess=True(기본)는 spawn 환경(macOS)에서 호출자에 __main__ 가드를 요구하고
+        # 교착 사례가 있어 비활성화. 부산물(demix/spec)은 cwd 오염 방지를 위해 임시 디렉터리로
+        import tempfile
+
+        with tempfile.TemporaryDirectory(prefix="allin1-") as tmp:
+            result = allin1.analyze(
+                str(audio_path),
+                demix_dir=f"{tmp}/demix",
+                spec_dir=f"{tmp}/spec",
+                multiprocess=False,
+            )
+    except Exception:
+        logger.exception("allin1 구조 분석 실패 — 구조/BPM 없이 진행: %s", audio_path.name)
+        return None, [], None
     sections = [Section(label=seg.label, start_s=seg.start, end_s=seg.end) for seg in result.segments]
-    return float(result.bpm), sections, pkg_version("allin1")
+    # 준무음 오디오에서는 비트 검출 실패로 bpm이 None일 수 있다
+    bpm = float(result.bpm) if result.bpm is not None else None
+    return bpm, sections, pkg_version("allin1")
 
 
 def _analyze_moods(audio_path: Path) -> tuple[list[MoodTag], str | None]:
-    """CLAP zero-shot 무드 태깅. 스파이크(macOS) 확정 전까지는 미구현 — 미설치/실패 시 ([], None)."""
+    """CLAP zero-shot 무드 태깅. 미설치/실패 시 ([], None)."""
     try:
-        import laion_clap  # noqa: F401
+        from musicna_core.analyze.moods import tag_moods
+
+        moods = tag_moods(audio_path)
     except ImportError:
         logger.info("laion-clap 미설치 — 무드 분석 건너뜀 (uv sync --extra mood)")
         return [], None
-    # TODO(Phase 3 스파이크): 무드 프롬프트 세트 확정 후 zero-shot 점수 구현
-    logger.warning("CLAP 무드 태깅은 스파이크 확정 전 — 빈 결과 반환")
-    return [], pkg_version("laion-clap")
+    except Exception:
+        logger.exception("CLAP 무드 분석 실패 — 무드 없이 진행: %s", audio_path.name)
+        return [], None
+    return moods, pkg_version("laion-clap")
 
 
 def analyze_track(audio_path: Path, midi_path: Path | None, meta: TrackMeta) -> AnalysisResult:
@@ -52,7 +85,10 @@ def analyze_track(audio_path: Path, midi_path: Path | None, meta: TrackMeta) -> 
     key = mode = None
     chords = []
     if midi_path is not None:
-        key, mode, _ = estimate_key_from_midi(midi_path)
+        if key_result := estimate_key_from_midi(midi_path):
+            key, mode, _ = key_result
+        else:
+            logger.warning("MIDI에 노트가 없어 키 추정 건너뜀: %s", midi_path.name)
         chords = extract_chords_from_midi(midi_path)
 
     bpm, sections, allin1_ver = _analyze_structure(audio_path)

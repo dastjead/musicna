@@ -19,12 +19,22 @@ transcribe = [
     "torch>=2.3; platform_machine == 'arm64'",
 ]
 analyze = [
-    "allin1>=1.1",       # Phase 3: 구조/BPM/비트 (madmom을 함께 끌어옴, macOS는 natten 자동 설치)
+    "allin1>=1.1",       # Phase 3: 구조/BPM/비트 (macOS는 natten 자동 설치)
+    # allin1은 madmom을 런타임 import하지만 의존성으로 선언하지 않음 — PyPI 0.16.1(2018)이
+    # Python 3.12/신형 numpy 비호환이라 git 설치가 공식 안내 (커밋 고정으로 재현성 확보)
+    "madmom @ git+https://github.com/CPJKU/madmom@27f032e8947204902c675e5e341a3faf5dc86dae",
+    # allin1의 dinat 모델은 natten 구 함수형 API(natten1dav 등)를 사용 — 0.17에서 제거됨.
+    # 0.14.x는 torch 2.13 헤더와 C++ 컴파일 불가, 0.15.x가 구 API를 가진 마지막 빌드 가능 계열.
+    # 소스 빌드라 venv에 torch·cmake·ninja 선존재 필요(no-build-isolation): 신규 머신은
+    # ① --extra transcribe로 torch 먼저 ② uv pip install cmake ninja ③ --extra analyze 순서로.
+    # torch 2.13에서 제거된 torch.cuda._device_t는 analyze/_patch_natten_torch_compat가 재주입.
+    "natten>=0.15,<0.17; platform_system == 'Darwin'",
     "librosa>=0.10",     # Phase 3: chroma, 오디오 특성
     # chorder는 계획에 있었으나 MIDI 코드 추출을 music21 harmony로 구현하여 불필요 (analyze/chords.py)
 ]
 mood = [
     "laion-clap>=1.1",   # Phase 3: zero-shot 무드 태깅
+    "torchvision",       # laion-clap이 런타임 import하지만 의존성 미선언 (torch와 버전 자동 정합)
 ]
 
 [dependency-groups]
@@ -36,3 +46,7 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/musicna_core"]
+
+# analyze extra의 madmom git 직접 참조 허용 (hatchling 기본값은 거부)
+[tool.hatch.metadata]
+allow-direct-references = true

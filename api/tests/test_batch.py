@@ -1,13 +1,22 @@
 """배치 오케스트레이터 테스트 — 합성 MIDI를 미리 두어 전사 없이 전 구간(스캔→분석→DB) 검증."""
 
+import sys
 from datetime import datetime
 
+import pytest
 from music21 import chord as m21chord
 from music21 import stream
 
 from musicna_api.batch import analyze_captured
 from musicna_core.models import TrackMeta
 from musicna_core.store import create_session_factory, list_latest_analyses
+
+
+@pytest.fixture(autouse=True)
+def no_ml_extras(monkeypatch):
+    """extras가 설치된 환경에서도 미설치 경로를 검증한다 — 실모델 로드(다운로드 수 GB) 방지."""
+    monkeypatch.setitem(sys.modules, "allin1", None)
+    monkeypatch.setitem(sys.modules, "laion_clap", None)
 
 
 def _prepare_capture(audio_dir, midi_dir, stem="001 - Tester - Song"):
