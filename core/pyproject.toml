@@ -36,9 +36,13 @@ mood = [
     "laion-clap>=1.1",   # Phase 3: zero-shot 무드 태깅
     "torchvision",       # laion-clap이 런타임 import하지만 의존성 미선언 (torch와 버전 자동 정합)
 ]
+chroma = [
+    "librosa>=0.10",     # 오디오 코드 교차 검증만 필요할 때 — analyze 전체(allin1 등) 없이 설치 가능
+]
 
 [dependency-groups]
-dev = ["pytest>=8"]
+# librosa는 chroma 교차 검증 테스트용 (합성 WAV fixture) — Linux CI에서도 설치 가능한 경량 스택
+dev = ["pytest>=8", "librosa>=0.10"]
 
 [build-system]
 requires = ["hatchling"]

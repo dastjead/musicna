@@ -12,13 +12,13 @@ from datetime import datetime
 from importlib.metadata import version as pkg_version
 from pathlib import Path
 
-from musicna_core.analyze.chords import extract_chords_from_midi
+from musicna_core.analyze.chords import extract_chords_from_midi, merge_chord_tracks
 from musicna_core.analyze.keys import estimate_key_from_midi
-from musicna_core.models import AnalysisResult, MoodTag, Section, TrackMeta
+from musicna_core.models import AnalysisResult, ChordEvent, MoodTag, Section, TrackMeta
 
 logger = logging.getLogger(__name__)
 
-__all__ = ["analyze_track", "extract_chords_from_midi", "estimate_key_from_midi"]
+__all__ = ["analyze_track", "extract_chords_from_midi", "estimate_key_from_midi", "merge_chord_tracks"]
 
 
 def _patch_natten_torch_compat() -> None:
@@ -67,6 +67,23 @@ def _analyze_structure(audio_path: Path) -> tuple[float | None, list[Section], s
     return bpm, sections, pkg_version("allin1")
 
 
+def _analyze_audio_chords(audio_path: Path) -> tuple[list[ChordEvent], str | None]:
+    """오디오(chroma) 코드 추출. librosa 미설치/실패 시 ([], None)."""
+    if not audio_path.exists():
+        return [], None
+    try:
+        from musicna_core.analyze.chords_audio import extract_chords_from_audio
+
+        events = extract_chords_from_audio(audio_path)
+    except ImportError:
+        logger.info("librosa 미설치 — 오디오 코드 교차 검증 건너뜀 (uv sync --extra chroma)")
+        return [], None
+    except Exception:
+        logger.exception("오디오 코드 추출 실패 — MIDI 코드만 사용: %s", audio_path.name)
+        return [], None
+    return events, pkg_version("librosa")
+
+
 def _analyze_moods(audio_path: Path) -> tuple[list[MoodTag], str | None]:
     """CLAP zero-shot 무드 태깅. 미설치/실패 시 ([], None)."""
     try:
@@ -94,6 +111,15 @@ def analyze_track(audio_path: Path, midi_path: Path | None, meta: TrackMeta) -> 
         else:
             logger.warning("MIDI에 노트가 없어 키 추정 건너뜀: %s", midi_path.name)
         chords = extract_chords_from_midi(midi_path)
+
+    # 교차 검증: 오디오(chroma) 코드가 있으면 MIDI 코드와 병합(MERGED), MIDI가 없으면 대체(AUDIO)
+    audio_chords, librosa_ver = _analyze_audio_chords(audio_path)
+    if librosa_ver:
+        versions["librosa"] = librosa_ver
+    if chords and audio_chords:
+        chords = merge_chord_tracks(chords, audio_chords)
+    elif audio_chords:
+        chords = audio_chords
 
     bpm, sections, allin1_ver = _analyze_structure(audio_path)
     if allin1_ver:

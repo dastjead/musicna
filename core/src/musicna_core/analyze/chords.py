@@ -7,6 +7,7 @@
 - 오디오(chroma) 기반 추출과의 교차 검증은 librosa/madmom 통합 시 추가 (source=AUDIO/MERGED)
 """
 
+import re
 from collections import defaultdict
 from pathlib import Path
 
@@ -14,6 +15,8 @@ from music21 import chord as m21chord
 from music21 import converter, harmony, pitch
 
 from musicna_core.models import ChordEvent, ChordSource
+
+_ROOT_RE = re.compile(r"^([A-G][#b\-]?)")
 
 # 창 안에서 최대 가중치 대비 이 비율 이상인 피치클래스만 코드 구성음 후보로 삼는다
 _PC_WEIGHT_THRESHOLD = 0.3
@@ -109,3 +112,80 @@ def extract_chords_from_midi(
                 )
             )
     return events
+
+
+# ── MIDI ↔ 오디오 교차 검증 ──────────────────────────────────────────────
+
+
+def _chord_family(label: str) -> tuple[int, str] | None:
+    """코드 라벨을 (루트 피치클래스, 3도 성질) 가족으로 정규화한다. 예: Am7 → (9, "minor").
+
+    두 추출 경로의 표기가 달라도(Am7 vs Am, B- vs A#) 같은 가족이면 일치로 본다.
+    파싱 불가('N' 등)는 None.
+    """
+    m = _ROOT_RE.match(label)
+    if not m:
+        return None
+    root = pitch.Pitch(m.group(1).replace("b", "-")).pitchClass
+    rest = label[m.end():]
+    is_minor = (rest.startswith("m") and not rest.startswith("maj")) or "dim" in rest
+    return root, "minor" if is_minor else "major"
+
+
+def merge_chord_tracks(
+    midi_events: list[ChordEvent],
+    audio_events: list[ChordEvent],
+    agreement_bonus: float = 0.15,
+    disagreement_penalty: float = 0.8,
+) -> list[ChordEvent]:
+    """MIDI·오디오 코드 트랙을 교차 검증해 하나로 병합한다.
+
+    - 두 경로가 같은 코드 가족(루트+장/단)이면: MIDI 라벨(보다 구체적)로 source=MERGED,
+      신뢰도는 두 값의 최댓값 + 보너스 (상한 1.0)
+    - 불일치하면: 신뢰도 높은 쪽을 채택하되 신뢰도에 페널티
+    - 한쪽에만 있으면 그대로 유지
+    """
+
+    def active(events: list[ChordEvent], start: float, end: float) -> ChordEvent | None:
+        mid = (start + end) / 2
+        return next((e for e in events if e.start_s <= mid < e.end_s), None)
+
+    bounds = sorted(
+        {e.start_s for e in midi_events + audio_events} | {e.end_s for e in midi_events + audio_events}
+    )
+    merged: list[ChordEvent] = []
+    for start, end in zip(bounds, bounds[1:]):
+        mid_ev, aud_ev = active(midi_events, start, end), active(audio_events, start, end)
+        if mid_ev is None and aud_ev is None:
+            continue
+        if mid_ev is not None and aud_ev is not None:
+            if _chord_family(mid_ev.chord) == _chord_family(aud_ev.chord) is not None:
+                confidence = min(1.0, max(mid_ev.confidence or 0, aud_ev.confidence or 0) + agreement_bonus)
+                chosen = ChordEvent(
+                    chord=mid_ev.chord, start_s=start, end_s=end,
+                    source=ChordSource.MERGED, confidence=round(confidence, 4),
+                )
+            else:
+                winner = mid_ev if (mid_ev.confidence or 0) >= (aud_ev.confidence or 0) else aud_ev
+                chosen = winner.model_copy(update={
+                    "start_s": start, "end_s": end,
+                    "confidence": round((winner.confidence or 0) * disagreement_penalty, 4),
+                })
+        else:
+            only = mid_ev if mid_ev is not None else aud_ev
+            chosen = only.model_copy(update={"start_s": start, "end_s": end})
+
+        prev = merged[-1] if merged else None
+        if (
+            prev is not None
+            and prev.chord == chosen.chord
+            and prev.source == chosen.source
+            and abs(prev.end_s - chosen.start_s) < 1e-6
+        ):
+            merged[-1] = prev.model_copy(update={
+                "end_s": chosen.end_s,
+                "confidence": max(prev.confidence or 0, chosen.confidence or 0) or None,
+            })
+        else:
+            merged.append(chosen)
+    return merged

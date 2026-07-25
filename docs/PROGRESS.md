@@ -9,8 +9,8 @@
 - **현재 Phase**: **Phase 3·4 마일스톤 검증 통과** (chroma 교차 검증만 잔여) ∥ Phase 5 준비
 - **작업 브랜치**: `claude/music-analysis-app-planning-rsfa6x`
 - **분담**: `capture-macos/`·`api/session/`은 macOS 로컬 담당, 원격은 `core/`·문서 담당. 작업 전 반드시 pull
-- **다음 할 일 (macOS)**: ① 캡처 레벨 정상 곡으로 트랙 추가 축적(002는 준무음 캡처였음) ② `uv run uvicorn musicna_api.main:app` → 브라우저에서 웹 UI 확인 ③ Phase 6 준비 — 스트리밍 전사 미리보기
-- **다음 할 일 (원격)**: 코드 진행 chroma 교차 검증(librosa, source=AUDIO/MERGED) 또는 Phase 6 WebSocket 이벤트 스키마 설계
+- **다음 할 일 (macOS)**: ① 캡처 레벨 정상 곡으로 트랙 추가 축적(002는 준무음 캡처였음) ② 웹 UI 확인 ③ `musicna-analyze --force`로 재분석 → 코드가 MERGED(교차 검증)로 채워지는지 실캡처 곡 확인 (librosa는 analyze extra에 이미 포함)
+- **다음 할 일 (원격)**: Phase 6 — WebSocket 이벤트 스키마 설계 + 실시간 미리보기 파이프라인 (전사 스트림은 macOS 검증 필요)
 
 ## Phase 체크리스트
 
@@ -47,7 +47,7 @@
 - [x] 키 추정 견고성: 노트 없는 MIDI(저레벨 캡처 전사 결과)에서 None 반환 — 실기기 E2E에서 발견된 크래시 수정 (테스트 2건 추가)
 - [x] 코드 진행 추출(MIDI 기반): `core/analyze/chords.py` — 초 단위 창·지속시간 가중 피치클래스 집계, music21 harmony 라벨링, 연속 코드 병합. 합성 MIDI 테스트 3건 (triad 진행·7th·빈 MIDI)
 - [x] analyze 파이프라인 조립: `analyze_track()` — 키+코드(base 의존성만으로 동작) + allin1/CLAP은 설치 시에만 채워지는 graceful degradation. 테스트 2건
-- [ ] 코드 진행 오디오(chroma) 교차 검증 — librosa/madmom 통합 시 (source=AUDIO/MERGED)
+- [x] 코드 진행 오디오(chroma) 교차 검증: `core/analyze/chords_audio.py`(librosa chroma_cqt + 장/단 3화음 템플릿 24개 코사인 매칭) + `merge_chord_tracks()`(코드 가족[루트+장/단] 일치→MERGED·신뢰도 보너스, 불일치→고신뢰 쪽 채택·페널티, 경계 분할 병합). librosa는 `chroma` extra 또는 analyze extra로 설치. 테스트 10건
 - [x] **(macOS)** allin1 실설치·구조/BPM 검증 — natten 0.15.1 소스 빌드·madmom git 핀으로 설치 확립, 실캡처 곡 BPM 118·구간 2개 검출 (45.6s/28.7s 오디오, CPU)
 - [x] **(macOS)** 스파이크: CLAP 무드 태깅 품질 검증 → `core/analyze/moods.py` 구현 — music 특화 체크포인트, zero-shot 12태그, 업템포 곡=happy/energetic·잔잔한 곡=dreamy/calm으로 청감 일치. 스텁 테스트 3건
 - [x] 마일스톤: 곡 1개 전체 분석 — 001 트랙에 bpm/key/코드 23개/구간 2개/무드 5개 전 항목 채워짐 (DB와 /tracks JSON으로 확인)
@@ -89,6 +89,7 @@
 | 2026-07-25 | **Phase 3 allin1·CLAP 검증 완료**(macOS): allin1 설치 확립(madmom git 핀 + natten 0.15.1 소스 빌드 + torch 호환 셈), BPM/구간 검출 확인. CLAP 무드 스파이크 → `core/analyze/moods.py` 구현 | 43 tests passed. allin1 `multiprocess=False` 필수(스폰 교착), 부산물은 임시 디렉터리로. 상세는 아래 검증 기록 |
 | 2026-07-25 | 원격 동기화: Linux 호환 수정 2건 — ① natten 정적 메타데이터 선언(`[[tool.uv.dependency-metadata]]`)으로 Linux uv sync 실패 해소(크로스 플랫폼 해석이 Darwin 전용 natten sdist를 빌드하려던 문제) ② `_patch_natten_torch_compat`가 torch 부재를 허용하도록 수정 | Linux에서 40 passed, 1 skipped. macOS 설치 동작에는 영향 없음 |
 | 2026-07-25 | 원격: Phase 5 웹 UI 구현 — 라이브러리 브라우저·구조 타임라인·코드 진행 뷰·무드 바, api 정적 서빙 | 42 passed, 1 skipped. Playwright 렌더 검수(라이트/다크/강등/툴팁) 완료. macOS에서 실캡처 DB로 확인 필요 |
+| 2026-07-25 | 원격: 코드 진행 chroma 교차 검증 — chords_audio(템플릿 매칭) + merge_chord_tracks, analyze_track 연결 | 52 passed, 1 skipped. 합성 사인파 3화음에서 C/F/G/C·Am 정확, MIDI·오디오 일치 시 MERGED(신뢰도 보너스). `chroma` extra 신설, dev 그룹에 librosa 추가(테스트용) |
 
 ## 실기기 검증 상세 기록 — 2026-07-25 (macOS)
 

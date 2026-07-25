@@ -61,6 +61,39 @@ def test_analyze_track_noteless_midi(tmp_path):
     assert result.midi_path == str(midi)
 
 
+def test_analyze_track_audio_cross_validation(tmp_path):
+    """MIDI와 오디오(합성 WAV)가 같은 진행이면 코드가 MERGED로 교차 검증되어야 한다."""
+    import numpy as np
+    import soundfile as sf
+
+    from musicna_core.models import ChordSource
+
+    names = [["C4 E4 G4", ("C4", "E4", "G4")], ["F3 A3 C4", ("F4", "A4", "C5")],
+             ["G3 B3 D4", ("G4", "B4", "D5")], ["C4 E4 G4", ("C4", "E4", "G4")]]
+    s = stream.Stream()
+    for midi_chord, _ in names:
+        c = m21chord.Chord(midi_chord)
+        c.quarterLength = 4.0  # 120bpm 기본 → 2초
+        s.append(c)
+    midi = tmp_path / "track.mid"
+    s.write("midi", fp=str(midi))
+
+    freq = {"C4": 261.63, "E4": 329.63, "G4": 392.0, "F4": 349.23, "A4": 440.0,
+            "C5": 523.25, "B4": 493.88, "D5": 587.33}
+    sr = 22050
+    t = np.arange(sr * 2) / sr
+    wave = np.concatenate([
+        sum(np.sin(2 * np.pi * freq[n] * t) for n in notes) / 3 for _, notes in names
+    ]).astype(np.float32)
+    wav = tmp_path / "track.wav"
+    sf.write(str(wav), wave, sr)
+
+    result = analyze_track(wav, midi, TrackMeta(title="Cross"))
+    assert "librosa" in result.engine_versions
+    assert [e.chord for e in result.chords] == ["C", "F", "G", "C"]
+    assert all(e.source == ChordSource.MERGED for e in result.chords)
+
+
 def test_analyze_track_structure_without_bpm(monkeypatch, tmp_path):
     """준무음 오디오에서 allin1이 bpm=None을 반환해도 크래시 없이 구간만 담아야 한다 (실기기 발견 사례)."""
     fake = types.ModuleType("allin1")
