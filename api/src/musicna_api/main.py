@@ -12,8 +12,10 @@ macOS 캡처 세션 매니저(musicna_api.session)는 이 패키지에 두되 co
 import os
 from collections.abc import Iterator
 from functools import lru_cache
+from pathlib import Path
 
 from fastapi import Depends, FastAPI
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 
 from musicna_core.models import AnalysisResult
@@ -41,3 +43,10 @@ def health() -> dict[str, str]:
 def list_tracks(db: Session = Depends(get_db)) -> list[AnalysisResult]:
     """트랙별 최신 분석 결과, 캡처 시각 역순."""
     return list_latest_analyses(db)
+
+
+# 웹 UI 정적 서빙 — API 라우트 등록 뒤에 마운트해야 /tracks 등이 우선한다.
+# 저장소 루트가 아닌 곳에서 실행하면 MUSICNA_WEB으로 web/ 경로를 지정한다.
+_web_dir = Path(os.environ.get("MUSICNA_WEB", "web"))
+if _web_dir.is_dir():
+    app.mount("/", StaticFiles(directory=str(_web_dir), html=True), name="web")

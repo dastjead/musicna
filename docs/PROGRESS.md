@@ -9,8 +9,8 @@
 - **현재 Phase**: **Phase 3·4 마일스톤 검증 통과** (chroma 교차 검증만 잔여) ∥ Phase 5 준비
 - **작업 브랜치**: `claude/music-analysis-app-planning-rsfa6x`
 - **분담**: `capture-macos/`·`api/session/`은 macOS 로컬 담당, 원격은 `core/`·문서 담당. 작업 전 반드시 pull
-- **다음 할 일 (macOS)**: ① 캡처 레벨 정상 곡으로 트랙 추가 축적(002는 준무음 캡처였음) ② Phase 6 준비 — 스트리밍 전사 미리보기
-- **다음 할 일 (원격)**: Phase 5 — 웹 UI (라이브러리 브라우저, 구조 타임라인, 코드 진행 뷰; /tracks API 사용). 코드 진행 chroma 교차 검증도 원격 구현 가능(librosa)
+- **다음 할 일 (macOS)**: ① 캡처 레벨 정상 곡으로 트랙 추가 축적(002는 준무음 캡처였음) ② `uv run uvicorn musicna_api.main:app` → 브라우저에서 웹 UI 확인 ③ Phase 6 준비 — 스트리밍 전사 미리보기
+- **다음 할 일 (원격)**: 코드 진행 chroma 교차 검증(librosa, source=AUDIO/MERGED) 또는 Phase 6 WebSocket 이벤트 스키마 설계
 
 ## Phase 체크리스트
 
@@ -60,7 +60,11 @@
 - [x] **(macOS)** 마일스톤: 재생→분석→DB 자동 축적 — 실캡처 2트랙 `uv run musicna-analyze` E2E 통과 (분석 2·실패 0, 재실행 시 중복 건너뜀, /tracks가 DB 결과 반환)
 
 ### Phase 5 — 웹 UI
-- [ ] 라이브러리 브라우저, 구조 타임라인, 코드 진행 뷰
+- [x] 라이브러리 브라우저 (`web/` 바닐라 HTML/CSS/JS, 빌드 도구 없음): 트랙 목록(키·BPM·무드 배지), 스탯 타일, 구조 타임라인(직접 라벨+범례+시간축), 코드 진행 레인(호버 툴팁)+텍스트 스트립, 무드 점수 바, 표 뷰(접근성), 라이트/다크
+- [x] api가 `web/` 정적 서빙 (`MUSICNA_WEB`, API 라우트 우선) + 테스트 2건
+- [x] 렌더 검수: 데모 DB 시드 → Playwright 스크린샷(라이트/다크/강등 상태/툴팁) 확인. dataviz 팔레트 검증 통과(구간 라벨 고정 색 매핑)
+- [ ] **(macOS)** 실캡처 DB로 브라우저 확인 (`uv run uvicorn musicna_api.main:app` → http://127.0.0.1:8000/)
+- [ ] (선택) 라이브러리 통계 화면 — 무드 분포·키 분포 (트랙이 쌓인 뒤)
 
 ### Phase 6 — 실시간 미리보기
 - [ ] 5초 청크 스트리밍 + WebSocket 라이브 뷰
@@ -84,6 +88,7 @@
 | 2026-07-25 | **Phase 4 E2E 마일스톤 검증 통과**(macOS): `musicna-analyze` 실캡처 2트랙 → SQLite 축적·중복 건너뜀·/tracks 조회 확인. 견고성 수정 2건: 노트 없는 MIDI 키 추정 크래시, allin1 bpm=None 크래시 | 002 트랙은 캡처 레벨이 준무음(-51dB RMS)이라 large 전사가 0노트 — 파이프라인은 크래시 없이 강등 처리하도록 수정. 캡처 볼륨 주의 |
 | 2026-07-25 | **Phase 3 allin1·CLAP 검증 완료**(macOS): allin1 설치 확립(madmom git 핀 + natten 0.15.1 소스 빌드 + torch 호환 셈), BPM/구간 검출 확인. CLAP 무드 스파이크 → `core/analyze/moods.py` 구현 | 43 tests passed. allin1 `multiprocess=False` 필수(스폰 교착), 부산물은 임시 디렉터리로. 상세는 아래 검증 기록 |
 | 2026-07-25 | 원격 동기화: Linux 호환 수정 2건 — ① natten 정적 메타데이터 선언(`[[tool.uv.dependency-metadata]]`)으로 Linux uv sync 실패 해소(크로스 플랫폼 해석이 Darwin 전용 natten sdist를 빌드하려던 문제) ② `_patch_natten_torch_compat`가 torch 부재를 허용하도록 수정 | Linux에서 40 passed, 1 skipped. macOS 설치 동작에는 영향 없음 |
+| 2026-07-25 | 원격: Phase 5 웹 UI 구현 — 라이브러리 브라우저·구조 타임라인·코드 진행 뷰·무드 바, api 정적 서빙 | 42 passed, 1 skipped. Playwright 렌더 검수(라이트/다크/강등/툴팁) 완료. macOS에서 실캡처 DB로 확인 필요 |
 
 ## 실기기 검증 상세 기록 — 2026-07-25 (macOS)
 

@@ -1,0 +1,234 @@
+/* musicna 웹 UI — 색은 dataviz 검증 팔레트(역할 기반 커스텀 프로퍼티)만 사용 */
+
+:root {
+  color-scheme: light;
+  --page: #f9f9f7;
+  --surface: #fcfcfb;
+  --ink: #0b0b0b;
+  --ink-2: #52514e;
+  --muted: #898781;
+  --grid: #e1e0d9;
+  --baseline: #c3c2b7;
+  --border: rgba(11, 11, 11, 0.10);
+
+  /* 구간 라벨 → 고정 슬롯 (순서 고정, 순환 금지) */
+  --sec-verse: #2a78d6;
+  --sec-chorus: #eb6834;
+  --sec-bridge: #1baf7a;
+  --sec-intro: #eda100;
+  --sec-outro: #e87ba4;
+  --sec-solo: #008300;
+  --sec-inst: #4a3aa7;
+  --sec-break: #e34948;
+  --sec-other: #c3c2b7;
+
+  --chord-fill: #b7d3f6;   /* sequential 150 — 단일 계열, 식별은 텍스트가 담당 */
+  --mood-fill: #2a78d6;    /* sequential 기본 hue */
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --page: #0d0d0d;
+    --surface: #1a1a19;
+    --ink: #ffffff;
+    --ink-2: #c3c2b7;
+    --muted: #898781;
+    --grid: #2c2c2a;
+    --baseline: #383835;
+    --border: rgba(255, 255, 255, 0.10);
+
+    --sec-verse: #3987e5;
+    --sec-chorus: #d95926;
+    --sec-bridge: #199e70;
+    --sec-intro: #c98500;
+    --sec-outro: #d55181;
+    --sec-solo: #008300;
+    --sec-inst: #9085e9;
+    --sec-break: #e66767;
+    --sec-other: #383835;
+
+    --chord-fill: #184f95; /* sequential 600 */
+    --mood-fill: #3987e5;
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--page);
+  color: var(--ink);
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.muted { color: var(--muted); }
+
+.topbar {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--grid);
+  background: var(--surface);
+}
+.topbar h1 { margin: 0; font-size: 18px; }
+.topbar button {
+  margin-left: auto;
+  border: 1px solid var(--baseline);
+  background: none;
+  color: var(--ink-2);
+  border-radius: 6px;
+  padding: 4px 12px;
+  cursor: pointer;
+}
+.topbar button:hover { border-color: var(--ink-2); }
+
+.layout {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  min-height: calc(100vh - 50px);
+}
+@media (max-width: 760px) { .layout { grid-template-columns: 1fr; } }
+
+/* ── 트랙 목록 ─────────────────────────────── */
+.track-list { border-right: 1px solid var(--grid); background: var(--surface); }
+.track-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: none;
+  border-bottom: 1px solid var(--grid);
+  background: none;
+  color: inherit;
+  padding: 10px 16px;
+  cursor: pointer;
+  font: inherit;
+}
+.track-item:hover { background: var(--page); }
+.track-item.selected { background: var(--page); box-shadow: inset 3px 0 0 var(--mood-fill); }
+.track-item .title { font-weight: 600; }
+.track-item .sub { color: var(--ink-2); font-size: 12px; }
+.track-item .badges { margin-top: 2px; display: flex; gap: 6px; flex-wrap: wrap; }
+
+.badge {
+  font-size: 11px;
+  color: var(--ink-2);
+  border: 1px solid var(--baseline);
+  border-radius: 999px;
+  padding: 0 8px;
+}
+
+/* ── 상세 ─────────────────────────────────── */
+.detail { padding: 20px 24px 48px; min-width: 0; }
+.empty-hint { margin-top: 40px; text-align: center; }
+
+.detail h2 { margin: 0; font-size: 20px; }
+.detail .meta-line { color: var(--ink-2); margin: 2px 0 0; }
+.detail .meta-line .sep { color: var(--muted); margin: 0 6px; }
+
+.stat-row { display: flex; gap: 12px; flex-wrap: wrap; margin: 16px 0 4px; }
+.stat-tile {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 16px;
+  min-width: 92px;
+}
+.stat-tile .label { font-size: 11px; color: var(--muted); }
+.stat-tile .value { font-size: 20px; font-weight: 650; }
+.stat-tile .value small { font-size: 12px; font-weight: 400; color: var(--ink-2); }
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px 16px;
+  margin-top: 16px;
+}
+.panel h3 { margin: 0 0 10px; font-size: 13px; color: var(--ink-2); font-weight: 600; }
+
+/* 타임라인 공통 */
+.lane { position: relative; height: 40px; }
+.lane .seg {
+  position: absolute;
+  top: 0;
+  height: 32px;
+  border-radius: 4px;
+  border: 2px solid var(--surface); /* 2px 표면 간격 */
+  overflow: hidden;
+  white-space: nowrap;
+  font-size: 12px;
+  line-height: 28px;
+  padding: 0 6px;
+  color: #fff;
+  cursor: default;
+}
+.lane .seg.chord {
+  background: var(--chord-fill);
+  color: var(--ink); /* 텍스트는 잉크 토큰 — 색이 아닌 텍스트가 식별 */
+  font-variant-numeric: tabular-nums;
+}
+.axis { position: relative; height: 18px; margin-top: 2px; }
+.axis .tick {
+  position: absolute;
+  top: 0;
+  font-size: 10px;
+  color: var(--muted);
+  transform: translateX(-50%);
+  font-variant-numeric: tabular-nums;
+}
+.axis .tick::before {
+  content: "";
+  display: block;
+  width: 1px;
+  height: 4px;
+  background: var(--baseline);
+  margin: 0 auto 1px;
+}
+
+.legend { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 10px; font-size: 12px; color: var(--ink-2); }
+.legend .key { display: inline-flex; align-items: center; gap: 5px; }
+.legend .swatch { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+
+/* 코드 진행 텍스트 스트립 */
+.chord-strip { margin-top: 10px; color: var(--ink-2); font-size: 13px; word-break: keep-all; }
+.chord-strip b { color: var(--ink); font-weight: 600; }
+
+/* 무드 바 — 단일 sequential hue, 점수 직접 라벨 */
+.mood-row { display: grid; grid-template-columns: 110px 1fr 44px; gap: 8px; align-items: center; margin: 6px 0; }
+.mood-row .name { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mood-row .bar { height: 8px; background: var(--grid); border-radius: 4px; overflow: hidden; }
+.mood-row .fill { height: 100%; background: var(--mood-fill); border-radius: 4px; }
+.mood-row .score { font-size: 12px; color: var(--ink-2); text-align: right; font-variant-numeric: tabular-nums; }
+
+/* 접이식 표 (접근성: 테이블 뷰) */
+details.table-view { margin-top: 12px; }
+details.table-view summary { cursor: pointer; color: var(--ink-2); font-size: 12px; }
+.table-view table { border-collapse: collapse; margin-top: 8px; font-size: 12px; width: 100%; max-width: 480px; }
+.table-view th, .table-view td {
+  border-bottom: 1px solid var(--grid);
+  padding: 3px 10px 3px 0;
+  text-align: left;
+  font-variant-numeric: tabular-nums;
+}
+.table-view th { color: var(--muted); font-weight: 500; }
+
+/* 툴팁 */
+.tooltip {
+  position: fixed;
+  z-index: 10;
+  pointer-events: none;
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+  padding: 6px 10px;
+  font-size: 12px;
+  max-width: 260px;
+}
+.tooltip .t-title { font-weight: 600; }
+.tooltip .t-sub { color: var(--ink-2); }
