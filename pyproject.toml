@@ -5,3 +5,11 @@ members = ["core", "api"]
 # natten 0.14.x sdist는 빌드 시 torch를 요구하면서 build-system.requires에 선언하지 않음
 # → venv의 torch(transcribe extra)를 그대로 쓰도록 빌드 격리 해제
 no-build-isolation-package = ["natten"]
+
+# 크로스 플랫폼 해석 시 natten sdist 메타데이터 빌드를 건너뛴다 — natten은 Darwin 전용
+# 마커인데도 uv가 Linux에서 메타데이터를 뽑으려고 sdist를 빌드(setuptools·torch 부재로 실패).
+# 정적 선언으로 해석만 통과시키고, 실제 휠 빌드는 macOS 설치 시(no-build-isolation) 수행된다.
+[[tool.uv.dependency-metadata]]
+name = "natten"
+version = "0.15.1"
+requires-dist = ["packaging", "torch"]

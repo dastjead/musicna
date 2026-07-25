@@ -25,8 +25,12 @@ def _patch_natten_torch_compat() -> None:
     """natten 0.15.1은 torch 2.13에서 제거된 `torch.cuda._device_t`를 import한다 — 타입 별칭 재주입.
 
     natten 0.15는 allin1이 쓰는 구 함수형 API(natten1dqkrpb 등)를 가진 마지막 PyPI 계열이라
-    업그레이드로는 해결 불가 (0.17에서 구 API 제거). torch가 별칭을 되살리면 no-op."""
-    import torch.cuda
+    업그레이드로는 해결 불가 (0.17에서 구 API 제거). torch가 별칭을 되살리면 no-op.
+    torch 자체가 없는 환경(원격 Linux 등)에서는 아무것도 하지 않는다 — allin1 import가 판정한다."""
+    try:
+        import torch.cuda
+    except ImportError:
+        return
 
     if not hasattr(torch.cuda, "_device_t"):
         from typing import Union

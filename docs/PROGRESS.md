@@ -83,6 +83,7 @@
 | 2026-07-25 | 원격: Phase 4 구현 — 저장소 패턴, /tracks DB 조회, `musicna-analyze` 배치 CLI | 37 tests passed. E2E 마일스톤(실캡처→DB)은 macOS에서 `uv run musicna-analyze`로 검증 필요 |
 | 2026-07-25 | **Phase 4 E2E 마일스톤 검증 통과**(macOS): `musicna-analyze` 실캡처 2트랙 → SQLite 축적·중복 건너뜀·/tracks 조회 확인. 견고성 수정 2건: 노트 없는 MIDI 키 추정 크래시, allin1 bpm=None 크래시 | 002 트랙은 캡처 레벨이 준무음(-51dB RMS)이라 large 전사가 0노트 — 파이프라인은 크래시 없이 강등 처리하도록 수정. 캡처 볼륨 주의 |
 | 2026-07-25 | **Phase 3 allin1·CLAP 검증 완료**(macOS): allin1 설치 확립(madmom git 핀 + natten 0.15.1 소스 빌드 + torch 호환 셈), BPM/구간 검출 확인. CLAP 무드 스파이크 → `core/analyze/moods.py` 구현 | 43 tests passed. allin1 `multiprocess=False` 필수(스폰 교착), 부산물은 임시 디렉터리로. 상세는 아래 검증 기록 |
+| 2026-07-25 | 원격 동기화: Linux 호환 수정 2건 — ① natten 정적 메타데이터 선언(`[[tool.uv.dependency-metadata]]`)으로 Linux uv sync 실패 해소(크로스 플랫폼 해석이 Darwin 전용 natten sdist를 빌드하려던 문제) ② `_patch_natten_torch_compat`가 torch 부재를 허용하도록 수정 | Linux에서 40 passed, 1 skipped. macOS 설치 동작에는 영향 없음 |
 
 ## 실기기 검증 상세 기록 — 2026-07-25 (macOS)
 
