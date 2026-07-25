@@ -190,3 +190,80 @@ class SpotifyPlayerDaemon:
 
 
 daemon = SpotifyPlayerDaemon()
+
+
+from fastapi import APIRouter, HTTPException
+
+router = APIRouter(prefix="/player", tags=["player"])
+
+
+@router.post("/play")
+def api_play() -> dict[str, str]:
+    try:
+        play()
+    except SpotifyPlayerError as e:
+        raise HTTPException(status_code=503, detail=str(e)) from e
+    return {"status": "ok"}
+
+
+@router.post("/pause")
+def api_pause() -> dict[str, str]:
+    try:
+        pause()
+    except SpotifyPlayerError as e:
+        raise HTTPException(status_code=503, detail=str(e)) from e
+    return {"status": "ok"}
+
+
+@router.post("/next")
+def api_next() -> dict[str, str]:
+    try:
+        next_track()
+    except SpotifyPlayerError as e:
+        raise HTTPException(status_code=503, detail=str(e)) from e
+    return {"status": "ok"}
+
+
+@router.post("/previous")
+def api_previous() -> dict[str, str]:
+    try:
+        previous_track()
+    except SpotifyPlayerError as e:
+        raise HTTPException(status_code=503, detail=str(e)) from e
+    return {"status": "ok"}
+
+
+@router.post("/volume")
+def api_set_volume(percent: int) -> dict[str, str]:
+    try:
+        set_volume(percent)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except SpotifyPlayerError as e:
+        raise HTTPException(status_code=503, detail=str(e)) from e
+    return {"status": "ok"}
+
+
+@router.get("/devices", response_model=list[PlayerDevice])
+def api_list_devices() -> list[PlayerDevice]:
+    try:
+        return list_devices()
+    except SpotifyPlayerError as e:
+        raise HTTPException(status_code=503, detail=str(e)) from e
+
+
+@router.post("/connect")
+def api_connect(device_id: str) -> dict[str, str]:
+    try:
+        connect_device(device_id)
+    except SpotifyPlayerError as e:
+        raise HTTPException(status_code=503, detail=str(e)) from e
+    return {"status": "ok"}
+
+
+@router.get("/status", response_model=PlayerStatus | None)
+def api_get_status() -> PlayerStatus | None:
+    try:
+        return get_status()
+    except SpotifyPlayerError as e:
+        raise HTTPException(status_code=503, detail=str(e)) from e

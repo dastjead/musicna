@@ -59,3 +59,28 @@ class SystemOrchestrator:
 
 
 orchestrator = SystemOrchestrator()
+
+
+from fastapi import APIRouter, HTTPException
+
+router = APIRouter(prefix="/system", tags=["system"])
+
+
+@router.post("/start", response_model=SystemStatus)
+def api_start() -> SystemStatus:
+    try:
+        orchestrator.start()
+    except player.SpotifyPlayerError as e:
+        raise HTTPException(status_code=503, detail=str(e)) from e
+    return orchestrator.status()
+
+
+@router.post("/stop", response_model=SystemStatus)
+def api_stop() -> SystemStatus:
+    orchestrator.stop()
+    return orchestrator.status()
+
+
+@router.get("/status", response_model=SystemStatus)
+def api_status() -> SystemStatus:
+    return orchestrator.status()
