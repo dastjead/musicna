@@ -179,3 +179,102 @@ def test_timeout_raises_spotify_player_error(monkeypatch):
     monkeypatch.setattr(subprocess, "run", _timeout)
     with pytest.raises(SpotifyPlayerError, match="응답 시간 초과"):
         play()
+
+
+# Task 3: SpotifyPlayerDaemon tests
+import time
+
+from musicna_api.player import SpotifyPlayerDaemon
+
+
+class _FakeProc:
+    def __init__(self):
+        self._terminated = False
+
+    def poll(self):
+        return None if not self._terminated else 0
+
+    def terminate(self):
+        self._terminated = True
+
+    def kill(self):
+        self._terminated = True
+
+    def wait(self, timeout=None):
+        if not self._terminated:
+            raise subprocess.TimeoutExpired(cmd="spotify_player", timeout=timeout)
+
+
+def test_daemon_start_spawns_and_waits_ready(monkeypatch):
+    spawned_cmds = []
+
+    def _fake_popen(cmd, **kwargs):
+        spawned_cmds.append(cmd)
+        return _FakeProc()
+
+    ready_after = {"n": 0}
+
+    def _fake_list_devices():
+        ready_after["n"] += 1
+        if ready_after["n"] < 2:
+            raise SpotifyPlayerError("not ready yet")
+        return []
+
+    monkeypatch.setattr("shutil.which", lambda name: "/opt/homebrew/bin/spotify_player")
+    monkeypatch.setattr(subprocess, "Popen", _fake_popen)
+    monkeypatch.setattr("musicna_api.player.list_devices", _fake_list_devices)
+    monkeypatch.setattr(time, "sleep", lambda s: None)  # 재시도 대기 스킵
+
+    d = SpotifyPlayerDaemon()
+    d.start(ready_timeout=5.0)
+
+    assert spawned_cmds[0][1:] == ["-d", "-o", "enable_media_control=false"]
+    assert d.is_running()
+
+
+def test_daemon_start_missing_binary_raises(monkeypatch):
+    monkeypatch.setattr("shutil.which", lambda name: None)
+    d = SpotifyPlayerDaemon()
+    with pytest.raises(SpotifyPlayerError, match="brew install"):
+        d.start()
+
+
+def test_daemon_start_process_exits_immediately_raises(monkeypatch):
+    class _DeadProc(_FakeProc):
+        def poll(self):
+            return 1  # 즉시 종료
+
+    monkeypatch.setattr("shutil.which", lambda name: "/opt/homebrew/bin/spotify_player")
+    monkeypatch.setattr(subprocess, "Popen", lambda cmd, **kw: _DeadProc())
+    d = SpotifyPlayerDaemon()
+    with pytest.raises(SpotifyPlayerError, match="종료"):
+        d.start(ready_timeout=1.0)
+
+
+def test_daemon_start_idempotent_when_already_running(monkeypatch):
+    calls = []
+    monkeypatch.setattr("shutil.which", lambda name: "/opt/homebrew/bin/spotify_player")
+    monkeypatch.setattr(subprocess, "Popen", lambda cmd, **kw: calls.append(1) or _FakeProc())
+    monkeypatch.setattr("musicna_api.player.list_devices", lambda: [])
+
+    d = SpotifyPlayerDaemon()
+    d.start()
+    d.start()  # 두 번째 호출은 재기동하지 않아야 함
+    assert len(calls) == 1
+
+
+def test_daemon_stop_terminates_process(monkeypatch):
+    monkeypatch.setattr("shutil.which", lambda name: "/opt/homebrew/bin/spotify_player")
+    monkeypatch.setattr(subprocess, "Popen", lambda cmd, **kw: _FakeProc())
+    monkeypatch.setattr("musicna_api.player.list_devices", lambda: [])
+
+    d = SpotifyPlayerDaemon()
+    d.start()
+    d.stop()
+    assert not d.is_running()
+
+
+def test_daemon_stop_when_not_running_is_noop():
+    d = SpotifyPlayerDaemon()
+    d.stop()  # 예외 없이 조용히 반환
+    assert not d.is_running()

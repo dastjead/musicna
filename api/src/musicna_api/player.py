@@ -133,3 +133,60 @@ def connect_device(device_id: str) -> None:
 
 def get_status() -> PlayerStatus | None:
     return parse_playback_json(_run_cli("get", "key", "playback"))
+
+
+import time
+
+
+class SpotifyPlayerDaemon:
+    """`spotify_player -d`(cargo `daemon` feature 빌드 필요) 서브프로세스 생명주기 관리.
+
+    macOS에서 `enable_media_control`은 기본 비활성화지만(포커스 문제), 헤드리스 실행에서는
+    창이 아예 없으므로 명시적으로 꺼서 예기치 않은 동작을 막는다.
+    """
+
+    def __init__(self) -> None:
+        self._proc: subprocess.Popen | None = None
+
+    def is_running(self) -> bool:
+        return self._proc is not None and self._proc.poll() is None
+
+    def start(self, ready_timeout: float = 10.0) -> None:
+        if self.is_running():
+            return
+        binary = shutil.which("spotify_player")
+        if binary is None:
+            raise SpotifyPlayerError(
+                "spotify_player가 설치되지 않았습니다. `brew install spotify_player`로 설치하세요."
+            )
+        self._proc = subprocess.Popen(
+            [binary, "-d", "-o", "enable_media_control=false"],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        )
+        deadline = time.monotonic() + ready_timeout
+        while time.monotonic() < deadline:
+            if not self.is_running():
+                raise SpotifyPlayerError(
+                    "spotify_player 데몬이 시작 직후 종료됐습니다 "
+                    "(cargo daemon feature 빌드 여부·인증 상태를 확인하세요)"
+                )
+            try:
+                list_devices()
+                return
+            except SpotifyPlayerError:
+                time.sleep(0.5)
+        raise SpotifyPlayerError(f"spotify_player 데몬이 {ready_timeout}초 내에 준비되지 않았습니다")
+
+    def stop(self, timeout: float = 5.0) -> None:
+        if not self.is_running():
+            return
+        assert self._proc is not None
+        self._proc.terminate()
+        try:
+            self._proc.wait(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            self._proc.kill()
+            self._proc.wait(timeout=timeout)
+
+
+daemon = SpotifyPlayerDaemon()
