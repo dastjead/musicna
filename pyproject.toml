@@ -1,5 +1,5 @@
 [tool.uv.workspace]
-members = ["core", "api"]
+members = ["core", "api", "tui"]
 
 [tool.uv]
 # natten 0.14.x sdist는 빌드 시 torch를 요구하면서 build-system.requires에 선언하지 않음
