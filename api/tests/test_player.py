@@ -222,6 +222,11 @@ def test_daemon_start_spawns_and_waits_ready(monkeypatch):
 
     monkeypatch.setattr("shutil.which", lambda name: "/opt/homebrew/bin/spotify_player")
     monkeypatch.setattr(subprocess, "Popen", _fake_popen)
+    # is_running()의 pgrep 체크: Popen이 아직 호출되지 않았으면 "안 떠 있음", 호출된 후엔 "떠 있음"
+    monkeypatch.setattr(
+        subprocess, "run",
+        lambda cmd, **kw: _FakeCompleted(returncode=0 if spawned_cmds else 1),
+    )
     monkeypatch.setattr("musicna_api.player.list_devices", _fake_list_devices)
     monkeypatch.setattr(time, "sleep", lambda s: None)  # 재시도 대기 스킵
 
@@ -239,42 +244,113 @@ def test_daemon_start_missing_binary_raises(monkeypatch):
         d.start()
 
 
-def test_daemon_start_process_exits_immediately_raises(monkeypatch):
-    class _DeadProc(_FakeProc):
-        def poll(self):
-            return 1  # 즉시 종료
-
-    monkeypatch.setattr("shutil.which", lambda name: "/opt/homebrew/bin/spotify_player")
-    monkeypatch.setattr(subprocess, "Popen", lambda cmd, **kw: _DeadProc())
-    d = SpotifyPlayerDaemon()
-    with pytest.raises(SpotifyPlayerError, match="종료"):
-        d.start(ready_timeout=1.0)
-
-
 def test_daemon_start_idempotent_when_already_running(monkeypatch):
     calls = []
+
+    def _fake_run(cmd, **kwargs):
+        if cmd[0] == "pgrep":
+            return _FakeCompleted(returncode=0)  # 이미 떠 있음
+        return _FakeCompleted(stdout="[]")
+
     monkeypatch.setattr("shutil.which", lambda name: "/opt/homebrew/bin/spotify_player")
     monkeypatch.setattr(subprocess, "Popen", lambda cmd, **kw: calls.append(1) or _FakeProc())
-    monkeypatch.setattr("musicna_api.player.list_devices", lambda: [])
+    monkeypatch.setattr(subprocess, "run", _fake_run)
 
     d = SpotifyPlayerDaemon()
     d.start()
     d.start()  # 두 번째 호출은 재기동하지 않아야 함
-    assert len(calls) == 1
+    assert len(calls) == 0
 
 
-def test_daemon_stop_terminates_process(monkeypatch):
+def test_daemon_is_running_uses_pgrep(monkeypatch):
+    calls = []
+
+    def _fake_run(cmd, **kwargs):
+        calls.append(cmd)
+        return _FakeCompleted(returncode=0)
+
+    monkeypatch.setattr(subprocess, "run", _fake_run)
+    d = SpotifyPlayerDaemon()
+    assert d.is_running() is True
+    assert calls[-1] == ["pgrep", "-f", "spotify_player -d"]
+
+
+def test_daemon_is_running_false_when_pgrep_finds_nothing(monkeypatch):
+    monkeypatch.setattr(subprocess, "run", lambda cmd, **kw: _FakeCompleted(returncode=1))
+    d = SpotifyPlayerDaemon()
+    assert d.is_running() is False
+
+
+def test_daemon_start_polls_pgrep_and_list_devices_until_ready(monkeypatch):
+    binary_calls = []
+
+    def _fake_run(cmd, **kwargs):
+        if cmd[0] == "pgrep":
+            # 2번째 폴링부터 "떠 있음"으로 판정
+            binary_calls.append("pgrep")
+            return _FakeCompleted(returncode=0 if len(binary_calls) >= 2 else 1)
+        return _FakeCompleted(stdout="[]")  # list_devices 성공
+
     monkeypatch.setattr("shutil.which", lambda name: "/opt/homebrew/bin/spotify_player")
     monkeypatch.setattr(subprocess, "Popen", lambda cmd, **kw: _FakeProc())
-    monkeypatch.setattr("musicna_api.player.list_devices", lambda: [])
+    monkeypatch.setattr(subprocess, "run", _fake_run)
+    monkeypatch.setattr(time, "sleep", lambda s: None)
 
     d = SpotifyPlayerDaemon()
-    d.start()
+    d.start(ready_timeout=5.0)
+    assert binary_calls  # pgrep이 최소 1번은 호출됨
+
+
+def test_daemon_start_times_out_when_never_ready(monkeypatch):
+    monkeypatch.setattr("shutil.which", lambda name: "/opt/homebrew/bin/spotify_player")
+    monkeypatch.setattr(subprocess, "Popen", lambda cmd, **kw: _FakeProc())
+    monkeypatch.setattr(subprocess, "run", lambda cmd, **kw: _FakeCompleted(returncode=1))
+    monkeypatch.setattr(time, "sleep", lambda s: None)
+
+    d = SpotifyPlayerDaemon()
+    with pytest.raises(SpotifyPlayerError, match="준비되지 않았습니다"):
+        d.start(ready_timeout=0.01)
+
+
+def test_daemon_stop_calls_pkill(monkeypatch):
+    calls = []
+
+    def _fake_run(cmd, **kwargs):
+        calls.append(cmd)
+        if cmd[0] == "pgrep":
+            # 첫 호출(is_running 체크)은 실행 중, pkill 이후 폴링은 종료됨
+            return _FakeCompleted(returncode=0 if len(calls) == 1 else 1)
+        return _FakeCompleted(returncode=0)
+
+    monkeypatch.setattr(subprocess, "run", _fake_run)
+    monkeypatch.setattr(time, "sleep", lambda s: None)
+
+    d = SpotifyPlayerDaemon()
     d.stop()
-    assert not d.is_running()
+    assert ["pkill", "-f", "spotify_player -d"] in calls
 
 
-def test_daemon_stop_when_not_running_is_noop():
+def test_daemon_stop_when_not_running_is_noop(monkeypatch):
+    calls = []
+    monkeypatch.setattr(subprocess, "run", lambda cmd, **kw: calls.append(cmd) or _FakeCompleted(returncode=1))
     d = SpotifyPlayerDaemon()
-    d.stop()  # 예외 없이 조용히 반환
-    assert not d.is_running()
+    d.stop()
+    # pgrep(is_running 체크)만 호출되고 pkill은 호출되지 않아야 함
+    assert all(c[0] != "pkill" for c in calls)
+
+
+def test_daemon_stop_escalates_to_sigkill_on_timeout(monkeypatch):
+    calls = []
+
+    def _fake_run(cmd, **kwargs):
+        calls.append(cmd)
+        if cmd[0] == "pgrep":
+            return _FakeCompleted(returncode=0)  # 항상 "아직 살아있음" — 정상 종료 실패 시뮬레이션
+        return _FakeCompleted(returncode=0)
+
+    monkeypatch.setattr(subprocess, "run", _fake_run)
+    monkeypatch.setattr(time, "sleep", lambda s: None)
+
+    d = SpotifyPlayerDaemon()
+    d.stop(timeout=0.01)
+    assert ["pkill", "-9", "-f", "spotify_player -d"] in calls

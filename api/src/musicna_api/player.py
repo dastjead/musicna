@@ -141,15 +141,26 @@ import time
 class SpotifyPlayerDaemon:
     """`spotify_player -d`(cargo `daemon` feature 빌드 필요) 서브프로세스 생명주기 관리.
 
+    spotify_player의 daemon 모드는 유닉스 표준 더블포크 데몬화를 한다(daemonize crate) —
+    subprocess.Popen으로 띄운 원래 자식 프로세스는 데몬화 완료 직후 스스로 종료하고, 실제
+    서비스는 부모와 연결이 끊긴 별도 PID로 남는다(2026-07-26 macOS 실기기에서 ps로 확인).
+    따라서 Popen 핸들의 poll()로는 생명주기를 판정할 수 없다 — pgrep/pkill로 실제
+    커맨드라인("spotify_player -d")을 매칭해 판정한다.
+
     macOS에서 `enable_media_control`은 기본 비활성화지만(포커스 문제), 헤드리스 실행에서는
     창이 아예 없으므로 명시적으로 꺼서 예기치 않은 동작을 막는다.
     """
+
+    _MATCH_PATTERN = "spotify_player -d"
 
     def __init__(self) -> None:
         self._proc: subprocess.Popen | None = None
 
     def is_running(self) -> bool:
-        return self._proc is not None and self._proc.poll() is None
+        result = subprocess.run(
+            ["pgrep", "-f", self._MATCH_PATTERN], capture_output=True, text=True
+        )
+        return result.returncode == 0
 
     def start(self, ready_timeout: float = 10.0) -> None:
         if self.is_running():
@@ -165,28 +176,25 @@ class SpotifyPlayerDaemon:
         )
         deadline = time.monotonic() + ready_timeout
         while time.monotonic() < deadline:
-            if not self.is_running():
-                raise SpotifyPlayerError(
-                    "spotify_player 데몬이 시작 직후 종료됐습니다 "
-                    "(cargo daemon feature 빌드 여부·인증 상태를 확인하세요)"
-                )
-            try:
-                list_devices()
-                return
-            except SpotifyPlayerError:
-                time.sleep(0.5)
+            if self.is_running():
+                try:
+                    list_devices()
+                    return
+                except SpotifyPlayerError:
+                    pass
+            time.sleep(0.5)
         raise SpotifyPlayerError(f"spotify_player 데몬이 {ready_timeout}초 내에 준비되지 않았습니다")
 
     def stop(self, timeout: float = 5.0) -> None:
         if not self.is_running():
             return
-        assert self._proc is not None
-        self._proc.terminate()
-        try:
-            self._proc.wait(timeout=timeout)
-        except subprocess.TimeoutExpired:
-            self._proc.kill()
-            self._proc.wait(timeout=timeout)
+        subprocess.run(["pkill", "-f", self._MATCH_PATTERN])
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            if not self.is_running():
+                return
+            time.sleep(0.2)
+        subprocess.run(["pkill", "-9", "-f", self._MATCH_PATTERN])
 
 
 daemon = SpotifyPlayerDaemon()
