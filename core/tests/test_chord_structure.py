@@ -173,6 +173,34 @@ def test_find_chord_loops_does_not_report_shorter_subsumed_pattern():
     assert loops[0].occurrences == [(0.0, 6.0), (6.0, 12.0)]
 
 
+def test_find_chord_loops_reports_primitive_period_for_four_repeats():
+    """4회 반복은 '8코드 패턴이 2회'가 아니라 '4코드 패턴이 4회'로 보고돼야 한다."""
+    pattern = ["I", "V", "vi", "IV"]
+    sequence = [
+        RomanEvent(roman=r, start_s=float(i), end_s=float(i + 1))
+        for i, r in enumerate(pattern * 4)
+    ]
+    loops = find_chord_loops(sequence, min_length=4)
+    assert len(loops) == 1
+    assert loops[0].pattern == pattern
+    assert loops[0].occurrences == [(0.0, 4.0), (4.0, 8.0), (8.0, 12.0), (12.0, 16.0)]
+
+
+def test_find_chord_loops_does_not_drop_trailing_occurrence_for_odd_repeats():
+    """5회(홀수) 반복에서도 마지막 등장이 누락되면 안 된다."""
+    pattern = ["I", "V", "vi", "IV"]
+    sequence = [
+        RomanEvent(roman=r, start_s=float(i), end_s=float(i + 1))
+        for i, r in enumerate(pattern * 5)
+    ]
+    loops = find_chord_loops(sequence, min_length=4)
+    assert len(loops) == 1
+    assert loops[0].pattern == pattern
+    assert loops[0].occurrences == [
+        (0.0, 4.0), (4.0, 8.0), (8.0, 12.0), (12.0, 16.0), (16.0, 20.0),
+    ]
+
+
 def test_find_chord_loops_greedily_selects_non_overlapping_occurrences():
     """등장끼리 겹치지 않는지 검증하는 일반 불변식 테스트."""
     # 실제 반복 패턴이 있는 시퀀스에서 occurrence가 절대 겹치지 않음을 확인

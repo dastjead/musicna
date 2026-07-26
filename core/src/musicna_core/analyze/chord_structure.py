@@ -103,6 +103,27 @@ def summarize_sections(roman_sequence: list[RomanEvent], sections: list[Section]
     return summaries
 
 
+def _is_primitive(pattern: tuple[str, ...]) -> bool:
+    """패턴 자체가 더 짧은 주기의 반복(부분적 반복 포함)이 아닌지 확인한다.
+
+    예: (I, V, I, V)는 (I, V)가 2회 반복된 것이라 원시(primitive) 패턴이 아니다 — 이런 패턴을
+    루프 후보로 받아들이면, 실제로는 더 짧은 주기가 반복되는 상황을 "긴 패턴이 적게 반복"하는
+    것으로 잘못 보고하게 된다(4회 이상 반복 시 관찰된 버그).
+
+    주기가 패턴 길이를 나누어떨어지게 하는 경우(온전한 정수배 반복)뿐 아니라, 예를 들어
+    (I, V, vi, IV, I, V, vi)처럼 길이 7이 주기 4로 나누어떨어지지 않아도 앞쪽 주기가 그대로
+    이어지는 "부분 반복" 역시 같은 종류의 버그를 재현하므로 함께 배제해야 한다. 이를 위해
+    period가 length를 나눠떨어지게 하는지는 따지지 않고, 유효한 모든 위치에서
+    pattern[i] == pattern[i + period]가 성립하는지만 확인한다(문자열 이론에서의 일반적인
+    "주기" 정의).
+    """
+    n = len(pattern)
+    for period in range(1, n):
+        if all(pattern[i] == pattern[i + period] for i in range(n - period)):
+            return False
+    return True
+
+
 def find_chord_loops(roman_sequence: list[RomanEvent], min_length: int = 4) -> list[ChordLoop]:
     """구간과 무관하게 로마자 시퀀스에서 반복되는 부분수열(최소 min_length)을 탐지한다.
 
@@ -119,7 +140,10 @@ def find_chord_loops(roman_sequence: list[RomanEvent], min_length: int = 4) -> l
         for start in range(n - length + 1):
             if any(claimed[start : start + length]):
                 continue
-            groups[tuple(romans[start : start + length])].append(start)
+            window = tuple(romans[start : start + length])
+            if not _is_primitive(window):
+                continue
+            groups[window].append(start)
 
         for pattern, starts in groups.items():
             occurrence_starts: list[int] = []
