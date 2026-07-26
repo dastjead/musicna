@@ -909,12 +909,12 @@ git commit -m "feat: launchd LaunchAgent로 api 상시 구동 설정 추가 (Pha
 
 **Interfaces:** 없음.
 
-- [ ] **Step 1: (macOS 실기기) Mac mini에 Tailscale 설치**
+- [x] **Step 1: (macOS 실기기) Mac mini에 Tailscale 설치**
 
 Run: `brew install --cask tailscale` (또는 App Store판)
 Tailscale 앱 실행 → 계정으로 로그인(Google/GitHub/이메일 등) → "Connected" 상태 확인
 
-- [ ] **Step 2: (macOS 실기기) MagicDNS 활성화 확인**
+- [x] **Step 2: (macOS 실기기) MagicDNS 활성화 확인**
 
 Tailscale 관리 콘솔(https://login.tailscale.com/admin/dns) → MagicDNS가 켜져 있는지 확인(기본으로 켜져 있음)
 
@@ -924,16 +924,16 @@ Expected: Mac mini 자신의 디바이스명과 tailnet IP(100.x.x.x)가 표시�
 Run: `tailscale ip -4`
 Expected: `100.x.x.x` 형태의 IP 하나 출력 — 이 IP 또는 `<디바이스명>.<tailnet>.ts.net` 호스트네임이 이후 클라이언트 접속 주소가 됨
 
-- [ ] **Step 3: (다른 기기 — iPhone/노트북 등) 같은 tailnet에 가입**
+- [x] **Step 3: (다른 기기 — iPhone/노트북 등) 같은 tailnet에 가입**
 
 해당 기기에 Tailscale 앱 설치 → 같은 계정으로 로그인 → "Connected" 확인
 
-- [ ] **Step 4: (다른 기기) Mac mini의 api에 원격 접속 확인**
+- [x] **Step 4: (다른 기기) Mac mini의 api에 원격 접속 확인**
 
 같은 기기에서 브라우저로 `http://<mac-mini-hostname>.<tailnet>.ts.net:8000/health` 접속
 Expected: `{"status":"ok"}` 표시 — 집 밖 네트워크(예: 모바일 데이터로 전환)에서도 동일하게 확인
 
-- [ ] **Step 5: 결과를 PROGRESS.md에 기록** (Task 7에서 마일스톤과 함께 일괄 기록)
+- [x] **Step 5: 결과를 PROGRESS.md에 기록** — 완료(2026-07-26). 실기기에서 겪은 문제: 아이폰이 로그인만 하고 실제 VPN 연결(iOS 설정의 VPN 토글)은 꺼져 있어 137일간 오프라인으로 표시되던 것을 발견 — 토글 확인 후 연결 성공. 상세는 deploy/macos/README.md 참조
 
 ---
 

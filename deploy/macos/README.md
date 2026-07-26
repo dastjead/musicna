@@ -92,7 +92,47 @@ rm ~/Library/LaunchAgents/com.musicna.api.plist
 - **재부팅 후 서비스가 안 살아남음**: 자동 로그인이 설정돼 있는지 확인(로그인 전에는 유저 LaunchAgent가 실행되지 않는다 — 시스템 전체에 적용되는 LaunchDaemon이 아니라 이 유저 계정에 종속된 LaunchAgent이기 때문). 자동 로그인 후에도 안 되면 `launchctl list | grep com.musicna.api`로 애초에 등록이 살아있는지부터 확인(수동으로 `rm`한 적 없는지)
 - **캡처(`/system/start`)가 실패함**: 이건 launchd 자체의 문제가 아니라 화면 기록 권한(TCC)·spotify_player 데몬·오디오 출력 장치 문제일 수 있음 — [docs/PROGRESS.md](../../docs/PROGRESS.md)의 Phase 7 검증 기록·"주의" 절 참조(HDMI 등 볼륨 API 미지원 출력 장치는 캡처가 조용히 무음이 됨)
 
+## 원격 접근 (Tailscale)
+
+집 밖에서도 이 api에 접속하려면 Mac mini와 클라이언트 기기(iPhone 등)가 같은 Tailscale 계정의 tailnet에 가입돼 있어야 한다. 공인 인터넷에는 아무것도 노출하지 않는다 — Tailscale 터널 안에서만 접근 가능.
+
+### 설치·확인 (Mac mini)
+
+```bash
+brew install --cask tailscale
+```
+
+Tailscale.app 실행 → 계정 로그인 → 상태 확인:
+
+```bash
+# CLI가 PATH에 없으면 앱 번들 안의 바이너리를 직접 호출한다
+/Applications/Tailscale.app/Contents/MacOS/tailscale status
+/Applications/Tailscale.app/Contents/MacOS/tailscale ip -4
+```
+
+`tailscale status`에 Mac mini 자신의 디바이스명(예: `js-m4-mini`)과 tailnet IP(`100.x.x.x`)가 나오면 정상. 이 IP 또는 `<디바이스명>.<tailnet>.ts.net` 호스트네임이 원격 클라이언트의 접속 주소가 된다.
+
+MagicDNS(호스트네임 해석)는 https://login.tailscale.com/admin/dns 에서 켜져 있는지 확인(기본 활성화).
+
+### 클라이언트 기기 가입 (iPhone 등)
+
+1. 해당 기기에 Tailscale 앱 설치, 같은 계정으로 로그인
+2. **로그인만으로는 부족하다** — iOS는 로그인 후 시스템이 "VPN 구성 추가" 승인을 요청하는데, 이걸 놓치거나 앱을 바로 닫으면 로그인은 됐지만 실제 VPN 연결은 꺼진 채로 남는다(겉으로는 문제없어 보이지만 tailnet 트래픽이 전혀 안 감)
+3. 기기의 Tailscale 앱에서 상단 토글이 켜져 있고 "Connected"로 표시되는지 반드시 확인. iOS 설정 → VPN 및 기기 관리에서도 Tailscale 프로필이 활성 상태인지 확인 가능
+4. Mac mini에서 `tailscale status`를 다시 실행해 해당 기기가 `offline`이 아니라 `active`로 뜨는지로 최종 확인
+
+**실기기에서 실제로 겪은 문제**: iPhone을 tailnet에 가입시켰다고 생각했지만 `tailscale status`에 137일째 `offline`으로 표시됨 — 원인은 로그인만 하고 VPN 토글이 꺼져 있었던 것. 토글을 켜자 즉시 `active`로 전환되고 원격 접속이 성공했다. **"로그인 = 연결"이 아니다**를 기억할 것.
+
+### 원격 접속 확인
+
+클라이언트 기기(가능하면 집 wifi가 아닌 모바일 데이터로 전환)에서:
+
+```
+http://<mac-mini-hostname>.<tailnet>.ts.net:8000/health
+```
+
+`{"status":"ok"}`가 나오면 성공. 안 되면 먼저 호스트명 대신 `tailscale ip -4`로 얻은 IP로 직접 시도해 DNS 문제인지 네트워크 문제인지 분리한다.
+
 ## 참고
 
-- 원격(Tailscale) 접근 설정은 별도 문서/Task 6 진행 후 이 파일에 추가 예정
 - 전체 아키텍처·설계 배경은 [docs/superpowers/specs/2026-07-26-central-deployment-ios-player-design.md](../../docs/superpowers/specs/2026-07-26-central-deployment-ios-player-design.md), 구현 계획은 [docs/superpowers/plans/2026-07-26-phase-8-5-central-deployment.md](../../docs/superpowers/plans/2026-07-26-phase-8-5-central-deployment.md) 참조
