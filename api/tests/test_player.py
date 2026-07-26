@@ -269,10 +269,11 @@ def test_daemon_is_running_uses_pgrep(monkeypatch):
         calls.append(cmd)
         return _FakeCompleted(returncode=0)
 
+    monkeypatch.setattr("shutil.which", lambda name: "/opt/homebrew/bin/spotify_player")
     monkeypatch.setattr(subprocess, "run", _fake_run)
     d = SpotifyPlayerDaemon()
     assert d.is_running() is True
-    assert calls[-1] == ["pgrep", "-f", "spotify_player -d"]
+    assert calls[-1] == ["pgrep", "-f", "/opt/homebrew/bin/spotify_player -d"]
 
 
 def test_daemon_is_running_false_when_pgrep_finds_nothing(monkeypatch):
@@ -322,12 +323,13 @@ def test_daemon_stop_calls_pkill(monkeypatch):
             return _FakeCompleted(returncode=0 if len(calls) == 1 else 1)
         return _FakeCompleted(returncode=0)
 
+    monkeypatch.setattr("shutil.which", lambda name: "/opt/homebrew/bin/spotify_player")
     monkeypatch.setattr(subprocess, "run", _fake_run)
     monkeypatch.setattr(time, "sleep", lambda s: None)
 
     d = SpotifyPlayerDaemon()
     d.stop()
-    assert ["pkill", "-f", "spotify_player -d"] in calls
+    assert ["pkill", "-f", "/opt/homebrew/bin/spotify_player -d"] in calls
 
 
 def test_daemon_stop_when_not_running_is_noop(monkeypatch):
@@ -348,9 +350,10 @@ def test_daemon_stop_escalates_to_sigkill_on_timeout(monkeypatch):
             return _FakeCompleted(returncode=0)  # 항상 "아직 살아있음" — 정상 종료 실패 시뮬레이션
         return _FakeCompleted(returncode=0)
 
+    monkeypatch.setattr("shutil.which", lambda name: "/opt/homebrew/bin/spotify_player")
     monkeypatch.setattr(subprocess, "run", _fake_run)
     monkeypatch.setattr(time, "sleep", lambda s: None)
 
     d = SpotifyPlayerDaemon()
     d.stop(timeout=0.01)
-    assert ["pkill", "-9", "-f", "spotify_player -d"] in calls
+    assert ["pkill", "-9", "-f", "/opt/homebrew/bin/spotify_player -d"] in calls

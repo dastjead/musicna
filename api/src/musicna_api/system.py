@@ -9,6 +9,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from musicna_api import player
@@ -35,7 +36,7 @@ class SystemOrchestrator:
             return
         self._session_proc = subprocess.Popen(
             [sys.executable, "-m", "musicna_api.session.cli",
-             "--source", "spotify", "--out", str(self.audio_dir)]
+             "--source", "spotify", "--out", str(self.audio_dir), "--system-audio"]
         )
 
     def stop(self, timeout: float = 10.0) -> None:
@@ -60,8 +61,6 @@ class SystemOrchestrator:
 
 orchestrator = SystemOrchestrator()
 
-
-from fastapi import APIRouter, HTTPException
 
 router = APIRouter(prefix="/system", tags=["system"])
 

@@ -17,7 +17,7 @@ class _FakeClient:
         self._seq = list(healthy_sequence)
 
     def health(self):
-        return self._seq.pop(0) if self._seq else self._seq[-1] if self._seq else True
+        return self._seq.pop(0) if self._seq else True
 
     def system_start(self):
         return {"spotify_player_daemon": True, "session_capturing": True}

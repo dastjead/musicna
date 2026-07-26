@@ -45,6 +45,7 @@ def test_start_starts_daemon_and_session(monkeypatch, orch):
 
     assert "musicna_api.session.cli" in spawned[0]
     assert "--source" in spawned[0] and "spotify" in spawned[0]
+    assert "--system-audio" in spawned[0]
     assert orch.session_capturing()
 
 

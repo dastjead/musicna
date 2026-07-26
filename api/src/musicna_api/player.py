@@ -13,7 +13,11 @@ CLI 문법은 실측 확인(2026-07-26, spotify_player 0.24.1, macOS)에 기반�
 """
 
 import json
+import shutil
+import subprocess
+import time
 
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 
@@ -74,10 +78,6 @@ def parse_devices_json(raw: str) -> list[PlayerDevice]:
     ]
 
 
-import shutil
-import subprocess
-
-
 class SpotifyPlayerError(Exception):
     """spotify_player CLI 호출 실패(비정상 종료·타임아웃·미설치)."""
 
@@ -135,9 +135,6 @@ def get_status() -> PlayerStatus | None:
     return parse_playback_json(_run_cli("get", "key", "playback"))
 
 
-import time
-
-
 class SpotifyPlayerDaemon:
     """`spotify_player -d`(cargo `daemon` feature 빌드 필요) 서브프로세스 생명주기 관리.
 
@@ -151,14 +148,16 @@ class SpotifyPlayerDaemon:
     창이 아예 없으므로 명시적으로 꺼서 예기치 않은 동작을 막는다.
     """
 
-    _MATCH_PATTERN = "spotify_player -d"
-
     def __init__(self) -> None:
         self._proc: subprocess.Popen | None = None
 
+    def _match_pattern(self) -> str:
+        binary = shutil.which("spotify_player") or "spotify_player"
+        return f"{binary} -d"
+
     def is_running(self) -> bool:
         result = subprocess.run(
-            ["pgrep", "-f", self._MATCH_PATTERN], capture_output=True, text=True
+            ["pgrep", "-f", self._match_pattern()], capture_output=True, text=True
         )
         return result.returncode == 0
 
@@ -171,6 +170,10 @@ class SpotifyPlayerDaemon:
                 "spotify_player가 설치되지 않았습니다. `brew install spotify_player`로 설치하세요."
             )
         self._proc = subprocess.Popen(
+            # macOS에서 media-control cargo feature가 켜진 채 빌드되면 `-d`가 즉시 거부된다
+            # (컴파일 타임 제약, 이 런타임 플래그만으로는 우회 불가) — 설치 시
+            # `cargo install spotify_player --no-default-features --features daemon,image,notify,rodio-backend`
+            # 필요. 상세: docs/PROGRESS.md Phase 7 실기기 검증 기록
             [binary, "-d", "-o", "enable_media_control=false"],
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
         )
@@ -188,19 +191,17 @@ class SpotifyPlayerDaemon:
     def stop(self, timeout: float = 5.0) -> None:
         if not self.is_running():
             return
-        subprocess.run(["pkill", "-f", self._MATCH_PATTERN])
+        subprocess.run(["pkill", "-f", self._match_pattern()])
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
             if not self.is_running():
                 return
             time.sleep(0.2)
-        subprocess.run(["pkill", "-9", "-f", self._MATCH_PATTERN])
+        subprocess.run(["pkill", "-9", "-f", self._match_pattern()])
 
 
 daemon = SpotifyPlayerDaemon()
 
-
-from fastapi import APIRouter, HTTPException
 
 router = APIRouter(prefix="/player", tags=["player"])
 
