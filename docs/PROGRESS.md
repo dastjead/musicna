@@ -7,7 +7,7 @@
 ## 현재 상태
 
 - **현재 Phase**: **Phase 0~7 전체 마일스톤 실기기 검증 통과**. **Phase 8.5(중앙 배포 인프라) 구현·최종 리뷰까지 완료**(Task 1~7 + 최종 전체 브랜치 리뷰, subagent-driven-development로 실행, 2026-07-26) — Tailscale+launchd 상시 배포, 원격 오디오 인제스트 엔드포인트, TUI 상시 api 접속 전환까지 반영. 최종 리뷰에서 이벤트 루프 블로킹·dedup 충돌 버그를 fix wave로 수정했고, 새로 발견된 원격 인제스트 동시성 이슈 1건은 **Phase 10 착수 전 lock 추가를 선행 조건**으로 park. 아래 두 실기기 검증 항목은 백로그로 이월(다음 할 일 참조). Phase 8(TUI 검색·플레이리스트·실시간뷰/라이브러리)은 여전히 미착수
-- **작업 브랜치**: `claude/music-analysis-app-planning-rsfa6x`
+- **작업 브랜치**: 2026-07-26부로 `main`에 병합 완료(Phase 0~8.5, 옛 단일 브랜치 `claude/music-analysis-app-planning-rsfa6x`는 삭제됨). **이후로는 Phase별 전용 브랜치에서 작업 → 완료 시 `main` 병합** 방식으로 전환(CLAUDE.md 참조). Phase 8 착수 시 새 브랜치(예: `phase-8-tui-parity`)부터 생성할 것
 - **분담**: `capture-macos/`·`api/session/`은 macOS 로컬 담당, 원격은 `core/`·문서 담당. 작업 전 반드시 pull
 - **다음 할 일 (macOS)**: ① **[백로그]** `MUSICNA_API_URL`을 Tailscale 주소로 지정해 `uv run musicna-tui`가 원격 api에 정상 접속·재생 제어되는지 확인(Phase 8.5 Task 7 Step 1, 2026-07-26 세션에서 시간 관계상 미확인) ② **[백로그]** Mac mini 실제 재부팅 후 `launchd`가 api를 자동 복구하는지 확인(Task 7 Step 3 — 자동 로그인 설정 자체도 이 테스트로 함께 검증) ③ 정상 레벨 곡 추가 캡처·축적. **주의**: 기본 오디오 출력 장치가 HDMI 등 볼륨 API 미지원 장치면 `--system-audio` 캡처가 조용히 실패한다 — 캡처 전 `SwitchAudioSource -c -t output`으로 확인, 필요시 내장 스피커로 전환(아래 Phase 7 기록 참조)
 - **다음 할 일 (원격)**: Phase 8(TUI 기능 동등화 — 검색·플레이리스트·실시간뷰·라이브러리 브라우저) 착수, 또는 Alembic 마이그레이션 도입. Phase 8.5는 구현 완료(위 백로그 2건 제외)
