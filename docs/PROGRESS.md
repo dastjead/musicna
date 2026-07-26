@@ -12,6 +12,14 @@
 - **다음 할 일 (macOS)**: ① `uv run musicna-tui`를 실제 터미널에서 대화형으로 확인(이번 검증은 `run_test()` 기반 무헤드 통합 검증) ② 정상 레벨 곡 추가 캡처·축적. **주의**: 기본 오디오 출력 장치가 HDMI 등 볼륨 API 미지원 장치면 `--system-audio` 캡처가 조용히 실패한다 — 캡처 전 `SwitchAudioSource -c -t output`으로 확인, 필요시 내장 스피커로 전환(아래 Phase 7 기록 참조)
 - **다음 할 일 (원격)**: Phase 8(TUI 기능 동등화 — 검색·플레이리스트·실시간뷰·라이브러리 브라우저) 착수, 또는 Alembic 마이그레이션 도입
 
+### 다음 세션 재개 체크리스트 (이 머신 또는 새 머신)
+
+1. `git pull` — 원격이 이 문서보다 앞서 있을 수 있음(원격 담당은 `core/`·문서·Phase 8)
+2. `uv sync --all-packages --extra transcribe --extra analyze --extra mood` — **주의**: extras 없이 `uv sync`/`uv run pytest`를 여러 번 반복하면 이 명령으로 깔린 ML 스택(torch/natten/setuptools/cmake/ninja)이 조용히 제거된다(아래 "환경 이슈" 참조) — Phase 3~7 관련 작업 전엔 항상 이 커맨드로 먼저 확인
+3. `uv run pytest core/tests api/tests tui/tests` → 145 passed 기대(2026-07-26 기준 최신 수치, Phase 8 진행되면 늘어남)
+4. macOS에서 spotify_player/TUI 작업 시: `export PATH="$HOME/.cargo/bin:$PATH"`(이미 `.zshrc`에 추가돼 있으면 새 셸에서 자동), `spotify_player --version`으로 daemon feature 포함 여부 확인(`spotify_player --help`에 `-d`/`--daemon`이 보여야 함 — 안 보이면 아래 "spotify_player 설치 절차"부터 재수행)
+5. Phase 8 착수 시 참고 문서: 설계는 이미 [docs/superpowers/specs/2026-07-26-tui-player-orchestration-design.md](superpowers/specs/2026-07-26-tui-player-orchestration-design.md)에 있고(Phase 7·8 함께 설계됨), Phase 8용 새 구현 계획만 `superpowers:writing-plans`로 작성하면 됨(검색·플레이리스트를 `player.py`에 CLI 래퍼로 추가 → `/player/search`,`/player/playlists` 라우트 → TUI에 실시간뷰·라이브러리 위젯 추가, 웹의 `live.js`/`app.js` 패턴 재사용)
+
 ## Phase 체크리스트
 
 ### Phase 0 — 프로젝트 스캐폴딩
@@ -119,6 +127,8 @@
 | 2026-07-26 | 브레인스토밍·설계·계획: TUI(`tui/`, Textual)+재생 엔진(`spotify_player` 임베딩) — Phase 7·8 스펙과 14-Task 구현 계획 작성. spotify_player 0.24.1 실바이너리로 CLI 문법·JSON 스키마 실측 확인 후 계획에 반영 | PLAN.md에 Phase 7~10 로드맵 추가(모든 클라이언트가 api/만 호출하는 동일 패턴). Homebrew 기본 빌드엔 daemon feature 없음(cargo 재빌드 필요)을 사전에 확인해 계획에 반영 |
 | 2026-07-26 | **Phase 7 구현**(subagent-driven development, Task 1~11): `api/player.py`(spotify_player CLI 래퍼·SpotifyPlayerDaemon)·`api/system.py`(SystemOrchestrator)·`/player,/system` REST·`api/session/metadata.py` spotify 소스 교체·`tui/`(ApiClient·PlayerPanel·SessionStatus·MusicnaApp) 신규 패키지 | Task별 구현자+리뷰어 서브에이전트 2단계 검토, 전부 승인(Critical/Important 0건, Minor는 원장에 기록). 전체 워크스페이스 141 passed |
 | 2026-07-26 | **Phase 7 마일스톤 실기기 검증 통과**(macOS): rust 1.86→1.97 업그레이드 후 spotify_player를 daemon feature로 cargo 재빌드(Homebrew 버전은 `media-control` 기본 feature가 daemon 모드와 macOS에서 상호 배타적 — 실기기에서 최초 발견). `/system/start`·`/player/play|pause|volume|next` 전부 실제 Spotify 재생에 반응, 재생이 캡처(WAV 실시간 증가)·트랙 분할(다음곡 전환마다 정확히 분리 저장)에 그대로 반영됨 확인. `/system/stop`이 SIGINT로 WAV 정상 마무리. `musicna-tui`를 `run_test()` 기반 무헤드 통합 검증으로 확인(위젯 실데이터 표시, space/n 키 → 실제 재생 제어) | **실기기 발견 버그**: `SpotifyPlayerDaemon`이 `subprocess.Popen` 핸들로 생명주기를 추적했으나 spotify_player daemon은 daemonize crate로 더블포크 데몬화 — 원래 핸들이 데몬화 직후 종료돼 `is_running()` 상시 오탐, `stop()`이 실제 데몬을 못 죽이고 좀비로 방치. `pgrep -f`/`pkill -f` 기반으로 교체(서브에이전트 fix+리뷰 통과, 84 passed) 후 재검증 완료 |
+| 2026-07-26 | **최종 전체 브랜치 리뷰(opus, 13 commits) → 발견 버그 수정·재검증**: 세션 캡처가 여전히 `--app com.spotify.client`(데스크톱 앱)만 필터링 — Task 4(메타데이터)와 Task 5(오디오 캡처 대상)가 서로 다른 "spotify"를 가리키던 task-scoped 리뷰의 사각지대. 컨트롤러가 Spotify.app 완전 종료 상태로 재현해 확정 → `SystemOrchestrator.start()`에 `--system-audio` 추가로 수정(외 Minor 4건 동시 수정, 145 passed) → 스코프된 재리뷰 통과 → 컨트롤러가 재검증(도중 별개의 HDMI 출력 볼륨 API 문제 발견·회피) | 서브에이전트 기반 개발(subagent-driven-development)의 각 Task 리뷰는 자기 diff만 보므로 여러 Task에 걸친 이름은 같지만 실제로 다른 개념(메타데이터의 "spotify" vs 캡처의 "spotify")의 불일치를 못 잡음 — 전체 브랜치 최종 리뷰가 반드시 필요했던 사례 |
+| 2026-07-26 | 문서 정리: PLAN.md Phase 7 완료 표시, PROGRESS.md에 재개 체크리스트·설계 결정 배경(전환 과정)·환경 이슈(uv sync가 ML extras 제거)·이 머신 영구 환경 변경사항 정리 추가 | 다른 머신에서도 이 문서만으로 Phase 7 상태를 재현·재개할 수 있도록 정리 |
 
 ## 실기기 검증 상세 기록 — 2026-07-25 (macOS)
 
@@ -201,6 +211,17 @@ laion-clap도 torchvision을 미선언 런타임 의존 → mood extra에 추가
 
 ## Phase 7 실기기 검증 상세 기록 — 2026-07-26 (macOS)
 
+### 설계 결정 배경 (브레인스토밍 요약 — 전환 과정 포함)
+
+Phase 7은 "터미널 UI 추가"라는 요청에서 시작해 브레인스토밍을 거치며 범위가 여러 번 좁혀졌다. 전체 논증은 [설계 스펙](superpowers/specs/2026-07-26-tui-player-orchestration-design.md)에 있고, 여기서는 나중에 왜 이 구조를 택했는지 헷갈리지 않도록 전환 지점만 요약한다:
+
+1. **재생 엔진 아키텍처**: 처음엔 "로컬 Spotify 데스크톱 앱을 Web API로 원격제어"(기존 캡처·메타데이터 무수정, 새 런타임 의존성 없음)를 추천했으나, 사용자가 "librespot 자체 기기"(musicna이 직접 Spotify Connect 기기가 되어 데스크톱 앱 없이도 동작)를 선택 — 이 선택이 Phase 7 전체의 복잡도(메타데이터 소스 교체, 이번에 발견된 오디오 캡처 대상 버그 등)의 근원
+2. **librespot 통합 방식**: 자체 Rust 헬퍼를 새로 작성하는 대신, 이미 완성된 [aome510/spotify-player](https://github.com/aome510/spotify-player) 바이너리를 서브프로세스로 임베딩하는 쪽으로 결정(자체 librespot 바인딩 코드 작성 안 함)
+3. **자체 스트리밍 vs 원격 제어 모드**: spotify_player는 두 모드를 다 지원하는데(기존 기기 원격 제어만 하는 가벼운 모드도 가능), "자체 스트리밍 모드"(musicna이 진짜 재생 기기가 됨)를 선택 — 이 때문에 "spotify" 소스 메타데이터를 AppleScript(데스크톱 앱 대상)에서 spotify_player 상태 폴링으로 교체하는 게 필수가 됨(Task 4)
+4. **범위 분할**: "librespot을 캡처 파이프라인(PCM 직접 탭)까지 교체"할지 검토했으나, 검증된 Phase 1을 재설계하는 별도 대규모 작업으로 보고 범위 밖으로 명시 — ScreenCaptureKit 캡처는 무수정, spotify_player는 재생 제어·오디오 소스 역할만
+5. **구현 순서**: 검색·플레이리스트·TUI 실시간뷰/라이브러리는 Phase 8로 이월하고, Phase 7은 핵심 재생 제어(재생/일시정지/다음곡/볼륨)+오케스트레이션+최소 TUI 셸까지만 — 리스크 큰 새 외부 의존성(spotify_player)을 먼저 실기기 검증하고 그 위에 화면을 얹는 순서
+6. **모든 클라이언트(웹·TUI·macOS·iOS 앱) 기능 동등화 원칙**: 사용자가 "각 인터페이스는 독립되지만 기능은 동등해야 한다"고 명시 → TUI도 웹처럼 라이브러리·실시간뷰까지 갖춰야 하고(Phase 8), 오케스트레이션 로직은 `api/`에만 두어 모든 클라이언트가 재사용(TUI만 갖는 특수 역할은 로컬 api 서버 부트스트랩뿐)
+
 ### spotify_player 설치 절차 (신규 머신 재현용)
 
 Homebrew 기본 배포판(`brew install spotify_player`)은 `daemon` cargo feature 없이 빌드되어 `-d`/`--daemon` 플래그가 없다. 헤드리스 구동을 위해 cargo로 재빌드해야 한다:
@@ -241,5 +262,24 @@ Task 13에서 "검증 통과"로 기록했던 재생↔캡처 연동은, 실은 
 - 개발 환경이 Linux 원격 컨테이너일 수 있음 → **capture-macos와 muscriptor Metal 실행은 로컬 macOS에서만 검증 가능**. 그 외(core/api)는 어디서든 테스트 가능
 - 무거운 ML 의존성(muscriptor, allin1, CLAP)은 core의 **optional extra**로 분리해 스캐폴딩 단계에서는 설치하지 않는다
 - 커밋·푸시는 지정 브랜치(`claude/music-analysis-app-planning-rsfa6x`)로만
-- **macOS 실행 요구사항** (상세는 위 검증 기록 참조): ① 터미널에 화면·시스템 오디오 기록 권한(TCC) ② HF 로그인 + muscriptor small/large 라이선스 동의 ③ arm64는 torch>=2.3 (transcribe extra가 강제함) ④ analyze extra는 natten 소스 빌드 순서 준수(위 Phase 3·4 기록의 3단계) ⑤ 캡처 시 재생 볼륨 확보 — 준무음 캡처는 전사·비트 검출이 빈 결과가 됨 ⑥ Phase 7~: spotify_player를 cargo로 `--no-default-features --features daemon,image,notify,rodio-backend`로 재빌드(Homebrew판은 daemon 미지원) + `~/.cargo/bin` PATH 등록 + `spotify_player authenticate`(위 Phase 7 검증 기록 참조)
+- **macOS 실행 요구사항** (상세는 위 검증 기록 참조): ① 터미널에 화면·시스템 오디오 기록 권한(TCC) ② HF 로그인 + muscriptor small/large 라이선스 동의 ③ arm64는 torch>=2.3 (transcribe extra가 강제함) ④ analyze extra는 natten 소스 빌드 순서 준수(위 Phase 3·4 기록의 3단계) ⑤ 캡처 시 재생 볼륨 확보 — 준무음 캡처는 전사·비트 검출이 빈 결과가 됨 ⑥ Phase 7~: spotify_player를 cargo로 `--no-default-features --features daemon,image,notify,rodio-backend`로 재빌드(Homebrew판은 daemon 미지원) + `~/.cargo/bin` PATH 등록 + `spotify_player authenticate`(위 Phase 7 검증 기록 참조) ⑦ **기본 오디오 출력 장치가 볼륨 API를 지원해야 함**(HDMI TV 등은 `missing value`를 반환하며 `--system-audio` 캡처가 조용히 무음이 됨) — `SwitchAudioSource -c -t output`(`brew install switchaudio-osx`)으로 확인
 - `data/`(audio/midi)는 git 미추적 — 검증 산출물은 이 머신 로컬에만 존재. 다른 머신에서 Phase 3 검증 시 캡처부터 다시 수행
+
+### 환경 이슈: `uv sync`(extras 없음)가 ML 스택을 조용히 제거함
+
+Phase 7 Task 12(전체 워크스페이스 회귀 테스트) 도중 발견: 여러 서브에이전트가 각자 `uv run pytest api/tests/...`나 `uv sync --all-packages`(extras 플래그 없이)를 반복 호출하면서, 그 전에 `--extra transcribe --extra analyze --extra mood`로 깔아뒀던 ML 스택(torch, natten, setuptools, cmake, ninja)이 조용히 제거되어 있었다 — uv는 `sync`를 "현재 요청된 조합과 정확히 일치하게 venv를 맞추는" 명령이라, extras를 안 주면 이전에 깔린 optional 그룹을 제거한다.
+
+- **증상**: `uv sync --all-packages --extra transcribe --extra analyze --extra mood`가 `ModuleNotFoundError: No module named 'setuptools'`(natten 소스 빌드 실패)로 에러
+- **복구 절차** (PROGRESS.md Phase 3·4 기록의 natten 빌드 순서와 동일한 원리): ① `uv sync --all-packages --extra transcribe`(torch 먼저 확보) ② `uv pip install setuptools cmake ninja` ③ `uv sync --all-packages --extra transcribe --extra analyze --extra mood`(전체 함께)
+- **검증**: `uv run python -c "from musicna_core.analyze import _patch_natten_torch_compat; _patch_natten_torch_compat(); import natten, allin1, laion_clap"`이 에러 없이 통과해야 함
+- **교훈**: ML extras가 필요한 작업(Phase 3 analyze, Phase 7 이후 spotify_player 무관하지만 같은 venv 공유) 전에는 항상 위 3단계로 먼저 확인할 것 — 특히 서브에이전트에게 여러 Task를 순차 디스패치할 때 각 Task의 `uv run pytest`가 extras 없이 실행되면 다음 Task 때는 스택이 빠져 있을 수 있음
+
+### 이 세션에서 이 머신(로컬)에 영구 적용된 환경 변경사항 (저장소 밖, 재현 시 참고)
+
+다른 macOS 머신에서 Phase 7을 재현하려면 아래를 전부 새로 해야 한다 — 이 머신엔 이미 적용되어 있음:
+
+- Homebrew `rust` 1.86.0 → 1.97.1 업그레이드(`brew upgrade rust`) — spotify_player의 의존성(ratatui 0.30 등)이 1.87+ 요구
+- `spotify_player`를 cargo로 재설치(`~/.cargo/bin/spotify_player`, daemon feature 포함), 기존 Homebrew판은 제거(`brew uninstall spotify_player`)
+- `~/.zshrc`에 `export PATH="$HOME/.cargo/bin:$PATH"` 추가(Hermes Agent PATH 라인 다음)
+- `brew install switchaudio-osx` — 오디오 출력 장치 전환/확인용 CLI
+- `spotify_player authenticate`는 이 머신에서 이전 세션에 이미 완료돼 있었음(재인증 불필요했음) — 신규 머신에서는 최초 1회 필요, OAuth 브라우저 흐름
