@@ -165,7 +165,7 @@ class RemoteSessionStartResponse(BaseModel):
 
 
 @router.post("/sessions", response_model=RemoteSessionStartResponse)
-def start_session(body: RemoteSessionStart) -> RemoteSessionStartResponse:
+async def start_session(body: RemoteSessionStart) -> RemoteSessionStartResponse:
     session_id = manager.start(body.meta, body.sample_rate, body.channels)
     _publish(LiveTrackStarted(track=body.meta))
     return RemoteSessionStartResponse(session_id=session_id)
@@ -184,7 +184,7 @@ async def upload_chunk(session_id: str, request: Request) -> dict[str, int]:
 
 
 @router.post("/sessions/{session_id}/end")
-def end_session(session_id: str) -> dict[str, str]:
+async def end_session(session_id: str) -> dict[str, str]:
     try:
         wav_path = manager.end(session_id)
     except KeyError:
