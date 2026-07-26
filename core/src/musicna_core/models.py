@@ -59,6 +59,23 @@ class MoodTag(BaseModel):
     score: float = Field(ge=0.0, le=1.0)
 
 
+class SectionChordSummary(BaseModel):
+    """구간(섹션) 단위 코드 진행 요약 — 로마자 표기, 곡 전체 key/mode 기준."""
+
+    section_label: str
+    start_s: float
+    end_s: float
+    roman_progression: list[str]       # 예: ["I", "V", "vi", "IV"]
+    repeats_of: int | None = None      # 동일 진행을 쓰는 첫 구간의 sections 인덱스, 없으면 None
+
+
+class ChordLoop(BaseModel):
+    """구간 경계와 무관하게 곡 전체에서 반복되는 코드 패턴(최소 4개 코드)."""
+
+    pattern: list[str]                          # 예: ["I", "V", "vi", "IV"]
+    occurrences: list[tuple[float, float]]       # 각 등장의 (start_s, end_s)
+
+
 # ── 실시간 미리보기 (Phase 6) — WebSocket /ws/live 이벤트 계약 ──────────────
 # 웹/iOS 어느 클라이언트든 같은 JSON 스키마를 구독한다. type 필드로 판별.
 
@@ -117,6 +134,8 @@ class AnalysisResult(BaseModel):
     sections: list[Section] = []
     chords: list[ChordEvent] = []
     moods: list[MoodTag] = []
+    section_chord_summaries: list[SectionChordSummary] = []
+    chord_loops: list[ChordLoop] = []
     midi_path: str | None = None
     engine_versions: dict[str, str] = {}  # 예: {"muscriptor": "...", "allin1": "..."}
     analyzed_at: datetime | None = None
