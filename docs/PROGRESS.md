@@ -6,20 +6,20 @@
 
 ## 현재 상태
 
-- **현재 Phase**: **Phase 0~7 전체 마일스톤 실기기 검증 통과**. Phase 7은 spotify_player 재생 엔진 통합(핵심 재생 제어)까지 완료, 검색·플레이리스트·TUI 실시간뷰/라이브러리는 Phase 8로 이월
+- **현재 Phase**: **Phase 0~7 전체 마일스톤 실기기 검증 통과**. **Phase 8.5(중앙 배포 인프라) 구현 완료**(Task 1~7, subagent-driven-development로 실행, 2026-07-26) — Tailscale+launchd 상시 배포, 원격 오디오 인제스트 엔드포인트, TUI 상시 api 접속 전환까지 반영. 단 아래 두 항목은 백로그로 이월(다음 할 일 참조). Phase 8(TUI 검색·플레이리스트·실시간뷰/라이브러리)은 여전히 미착수
 - **작업 브랜치**: `claude/music-analysis-app-planning-rsfa6x`
 - **분담**: `capture-macos/`·`api/session/`은 macOS 로컬 담당, 원격은 `core/`·문서 담당. 작업 전 반드시 pull
-- **다음 할 일 (macOS)**: ① `uv run musicna-tui`를 실제 터미널에서 대화형으로 확인(이번 검증은 `run_test()` 기반 무헤드 통합 검증) ② 정상 레벨 곡 추가 캡처·축적. **주의**: 기본 오디오 출력 장치가 HDMI 등 볼륨 API 미지원 장치면 `--system-audio` 캡처가 조용히 실패한다 — 캡처 전 `SwitchAudioSource -c -t output`으로 확인, 필요시 내장 스피커로 전환(아래 Phase 7 기록 참조)
-- **다음 할 일 (원격)**: Phase 8(TUI 기능 동등화 — 검색·플레이리스트·실시간뷰·라이브러리 브라우저) 착수, 또는 Alembic 마이그레이션 도입. **2026-07-26 브레인스토밍으로 로드맵에 Phase 8.5(중앙 배포 인프라: Tailscale+launchd)를 신설하고 Phase 10(iOS 앱) 범위를 "자체 재생·캡처 기기"로 확정** — 설계는 [2026-07-26-central-deployment-ios-player-design.md](superpowers/specs/2026-07-26-central-deployment-ios-player-design.md), 아직 구현 계획(writing-plans)은 미작성. Phase 8 구현과 순서 무관하게 진행 가능(Phase 8.5는 인프라, Phase 8은 TUI 기능)
+- **다음 할 일 (macOS)**: ① **[백로그]** `MUSICNA_API_URL`을 Tailscale 주소로 지정해 `uv run musicna-tui`가 원격 api에 정상 접속·재생 제어되는지 확인(Phase 8.5 Task 7 Step 1, 2026-07-26 세션에서 시간 관계상 미확인) ② **[백로그]** Mac mini 실제 재부팅 후 `launchd`가 api를 자동 복구하는지 확인(Task 7 Step 3 — 자동 로그인 설정 자체도 이 테스트로 함께 검증) ③ 정상 레벨 곡 추가 캡처·축적. **주의**: 기본 오디오 출력 장치가 HDMI 등 볼륨 API 미지원 장치면 `--system-audio` 캡처가 조용히 실패한다 — 캡처 전 `SwitchAudioSource -c -t output`으로 확인, 필요시 내장 스피커로 전환(아래 Phase 7 기록 참조)
+- **다음 할 일 (원격)**: Phase 8(TUI 기능 동등화 — 검색·플레이리스트·실시간뷰·라이브러리 브라우저) 착수, 또는 Alembic 마이그레이션 도입. Phase 8.5는 구현 완료(위 백로그 2건 제외)
 
 ### 다음 세션 재개 체크리스트 (이 머신 또는 새 머신)
 
 1. `git pull` — 원격이 이 문서보다 앞서 있을 수 있음(원격 담당은 `core/`·문서·Phase 8)
 2. `uv sync --all-packages --extra transcribe --extra analyze --extra mood` — **주의**: extras 없이 `uv sync`/`uv run pytest`를 여러 번 반복하면 이 명령으로 깔린 ML 스택(torch/natten/setuptools/cmake/ninja)이 조용히 제거된다(아래 "환경 이슈" 참조) — Phase 3~7 관련 작업 전엔 항상 이 커맨드로 먼저 확인
-3. `uv run pytest core/tests api/tests tui/tests` → 145 passed 기대(2026-07-26 기준 최신 수치, Phase 8 진행되면 늘어남)
+3. `uv run pytest core/tests api/tests tui/tests` → 160 passed 기대(2026-07-26 Phase 8.5 구현 완료 기준 최신 수치, Phase 8 진행되면 늘어남)
 4. macOS에서 spotify_player/TUI 작업 시: `export PATH="$HOME/.cargo/bin:$PATH"`(이미 `.zshrc`에 추가돼 있으면 새 셸에서 자동), `spotify_player --version`으로 daemon feature 포함 여부 확인(`spotify_player --help`에 `-d`/`--daemon`이 보여야 함 — 안 보이면 아래 "spotify_player 설치 절차"부터 재수행)
 5. Phase 8 착수 시 참고 문서: 설계는 이미 [docs/superpowers/specs/2026-07-26-tui-player-orchestration-design.md](superpowers/specs/2026-07-26-tui-player-orchestration-design.md)에 있고(Phase 7·8 함께 설계됨), Phase 8용 새 구현 계획만 `superpowers:writing-plans`로 작성하면 됨(검색·플레이리스트를 `player.py`에 CLI 래퍼로 추가 → `/player/search`,`/player/playlists` 라우트 → TUI에 실시간뷰·라이브러리 위젯 추가, 웹의 `live.js`/`app.js` 패턴 재사용)
-6. Phase 8.5(중앙 배포 인프라)·Phase 10(iOS 앱) 착수 시 참고 문서: [docs/superpowers/specs/2026-07-26-central-deployment-ios-player-design.md](superpowers/specs/2026-07-26-central-deployment-ios-player-design.md) — Tailscale+launchd 배포 설계, iOS 자체 재생·캡처 타당성 조사(논의 과정·기각한 대안 포함)까지 기록돼 있음. 이 스펙 기반으로 `superpowers:writing-plans`로 구현 계획 작성 필요(아직 미작성). Phase 8.5는 Phase 8과 순서 무관하게 병행 가능
+6. **Phase 8.5는 구현 완료**(2026-07-26, Task 1~7) — 설계는 [docs/superpowers/specs/2026-07-26-central-deployment-ios-player-design.md](superpowers/specs/2026-07-26-central-deployment-ios-player-design.md), 구현 계획·진행 기록은 [docs/superpowers/plans/2026-07-26-phase-8-5-central-deployment.md](superpowers/plans/2026-07-26-phase-8-5-central-deployment.md), 운영 매뉴얼은 [deploy/macos/README.md](../deploy/macos/README.md) 참조. 남은 건 위 "다음 할 일 (macOS)"의 백로그 2건(TUI 원격 접속·재부팅 복구 확인)뿐. Phase 10(iOS 앱) 착수 시에도 같은 설계 스펙 참고(iOS 자체 재생·캡처 타당성 조사·논의 과정 포함)
 
 ## Phase 체크리스트
 
@@ -112,12 +112,12 @@
 > | 4 | TUI 자체 부팅 제거 | ✅ 완료, 리뷰 통과(수정 없음) | `9d57f78` |
 > | 5 | launchd LaunchAgent | ✅ 완료 — 사용자가 직접 설치·헬스체크·재부팅 복구까지 확인. 운영 매뉴얼: [deploy/macos/README.md](../deploy/macos/README.md) | `aaeb595` |
 > | 6 | Tailscale 설정 | ✅ 완료 — Mac mini(js-m4-mini)+iPhone 원격 접속 확인. 발견: iPhone이 로그인만으로는 VPN 미연결(137일 오프라인), iOS VPN 토글 별도 확인 필요 | 코드 변경 없음 |
-> | 7 | 전체 마일스톤 검증 | 대기 | — |
+> | 7 | 전체 마일스톤 검증 | ⏳ 부분 완료 — 라이브러리 원격 조회 확인, **TUI 원격 접속·재부팅 복구는 백로그로 이월**(아래 "다음 할 일" 참조) | — |
 - [x] Tailscale 설치·설정(Mac mini + 클라이언트 기기), MagicDNS 호스트네임 확보 (2026-07-26, [운영 매뉴얼](../deploy/macos/README.md#원격-접근-tailscale)의 iOS VPN 토글 문제 참조)
-- [ ] Mac mini 자동 로그인 설정 (재부팅 복구용)
+- [ ] Mac mini 자동 로그인 설정 (재부팅 복구용) — **미확인, 백로그**: 재부팅 복구 테스트(Task 7 Step 3)로 함께 검증 예정
 - [x] `launchd` LaunchAgent plist 작성 — `uvicorn musicna_api.main:app` 상시 구동, KeepAlive로 크래시 재시작 (2026-07-26, 설치·검증 완료, [운영 매뉴얼](../deploy/macos/README.md))
-- [ ] 원격 오디오 인제스트 엔드포인트 신설 — PCM 청크 수신 → 실시간 미리보기(`musicna-live` 파이프라인 재사용) + 트랙 종료 시 WAV 완성 저장(`musicna-analyze` 배치가 그대로 집어감)
-- [ ] **(macOS)** 마일스톤: 집 밖에서 Tailscale로 api 접속 → 라이브러리 조회·재생 원격제어 확인
+- [x] 원격 오디오 인제스트 엔드포인트 신설 — PCM 청크 수신 → 실시간 미리보기(`musicna-live` 파이프라인 재사용) + 트랙 종료 시 WAV 완성 저장(`musicna-analyze` 배치가 그대로 집어감) (Task 2·3, 2026-07-26)
+- [ ] **(macOS)** 마일스톤: 집 밖에서 Tailscale로 api 접속 → 라이브러리 조회(✅ 확인)·**재생 원격제어(TUI, 백로그)** 확인
 
 ### Phase 9 — macOS 네이티브 앱
 - [ ] `api/`만 호출하는 macOS 네이티브 앱(SwiftUI), Phase 8.5의 상시 중앙 api에 접속
@@ -157,6 +157,7 @@
 | 2026-07-26 | **최종 전체 브랜치 리뷰(opus, 13 commits) → 발견 버그 수정·재검증**: 세션 캡처가 여전히 `--app com.spotify.client`(데스크톱 앱)만 필터링 — Task 4(메타데이터)와 Task 5(오디오 캡처 대상)가 서로 다른 "spotify"를 가리키던 task-scoped 리뷰의 사각지대. 컨트롤러가 Spotify.app 완전 종료 상태로 재현해 확정 → `SystemOrchestrator.start()`에 `--system-audio` 추가로 수정(외 Minor 4건 동시 수정, 145 passed) → 스코프된 재리뷰 통과 → 컨트롤러가 재검증(도중 별개의 HDMI 출력 볼륨 API 문제 발견·회피) | 서브에이전트 기반 개발(subagent-driven-development)의 각 Task 리뷰는 자기 diff만 보므로 여러 Task에 걸친 이름은 같지만 실제로 다른 개념(메타데이터의 "spotify" vs 캡처의 "spotify")의 불일치를 못 잡음 — 전체 브랜치 최종 리뷰가 반드시 필요했던 사례 |
 | 2026-07-26 | 문서 정리: PLAN.md Phase 7 완료 표시, PROGRESS.md에 재개 체크리스트·설계 결정 배경(전환 과정)·환경 이슈(uv sync가 ML extras 제거)·이 머신 영구 환경 변경사항 정리 추가 | 다른 머신에서도 이 문서만으로 Phase 7 상태를 재현·재개할 수 있도록 정리 |
 | 2026-07-26 | Phase 8 착수 전 브레인스토밍: "중앙 DB/api를 실제로 어디서 운영할 것인가" 논의 → Tailscale+launchd 상시 배포 구조(Phase 8.5 신설) 결정. "spotify_player·캡처를 앱마다 따로" 제안을 검토하며 iOS는 시스템 오디오 캡처 API 자체가 없다는 제약 확인 → "iOS 앱 자신이 Spotify Connect 기기가 되면 캡처 권한 문제가 사라진다"는 대안 도출, 웹 조사로 타당성 확인(cpal iOS 지원 확인, `librespot-golang`/gomobile 레퍼런스 발견, iOS 백그라운드 정책 리스크 확인) → Phase 10 범위를 "포그라운드 전용 자체 재생·캡처 기기"로 확정. 설계 스펙 작성·커밋 후 PLAN.md·PROGRESS.md 반영 | 설계 스펙: [2026-07-26-central-deployment-ios-player-design.md](superpowers/specs/2026-07-26-central-deployment-ios-player-design.md). 논의 과정(대안 비교·기각 근거)까지 스펙 문서에 상세히 기록. 구현 계획(writing-plans)은 아직 미작성 — Phase 8.5·10 착수 시 작성 필요 |
+| 2026-07-26 | **Phase 8.5 구현 계획 작성(writing-plans) + subagent-driven-development로 실행**: Task 1(process_chunk 추출)·2(RemoteCaptureManager)·3(/remote/audio/* 엔드포인트)·4(TUI 부트스트랩 제거)는 서브에이전트 구현+태스크별 리뷰(각 1회 fix round: 비정렬 PCM 청크 가드, asyncio.Queue 스레드 안전성). Task 5(launchd)는 파일 작성만 서브에이전트, 실제 설치·검증은 사용자 직접 진행. Task 6(Tailscale)은 전부 사용자 직접 진행 — iPhone 로그인만으로 VPN 미연결(137일 offline)되는 문제를 컨트롤러가 `tailscale status` 직접 조회로 진단, 토글 확인 후 해결. Task 7(마일스톤 검증)은 라이브러리 원격 조회만 확인, TUI 원격 접속·재부팅 복구는 백로그 이월 | 워크스페이스 테스트 145→160 passed. 매 Task 완료 후 계획 파일 체크박스·PROGRESS.md 진행표·작업 로그를 즉시 갱신(세션/토큰 한도로 중단되어도 재개 가능하도록). `deploy/macos/README.md` 운영 매뉴얼 신설(설치/상태확인/재시작/트러블슈팅/Tailscale). 상세는 위 "Phase 8.5 실기기 검증 상세 기록" 및 [구현 계획 파일](superpowers/plans/2026-07-26-phase-8-5-central-deployment.md) 참조 |
 
 ## 실기기 검증 상세 기록 — 2026-07-25 (macOS)
 
@@ -284,6 +285,28 @@ Task 13에서 "검증 통과"로 기록했던 재생↔캡처 연동은, 실은 
 - **수정**: `SystemOrchestrator.start()`의 세션 스폰 커맨드에 `--system-audio` 추가(`api/system.py`) — `session/cli.py`의 기존 옵션을 그대로 활용, `cli.py`·`Capture.swift`는 무수정
 - **수정 후 재검증**(컨트롤러 직접, Spotify.app 완전 종료 상태): 세션 프로세스가 살아남았으나(로그: `musicna-capture: capturing system audio`) 이번엔 새 WAV가 안 생기는 **별개의 환경 문제**를 만남 — 기본 오디오 출력이 볼륨 API 미지원 HDMI TV 장치(`output volume: missing value`)로 잡혀 있었다. `switchaudio-osx`(`brew install switchaudio-osx`)로 Mac mini 내장 스피커로 전환하니 즉시 캡처 성공(21MB WAV, JSON 사이드카 정상 생성, `/system/stop`으로 정상 마무리). 검증 후 출력 장치 원복
 - **교훈 두 가지**: ① 서브에이전트별 task-scoped 리뷰는 각 Task의 diff만 보므로, 여러 Task에 걸친 "이름은 같은데 실제로는 다른 두 가지 일"(메타데이터의 "spotify"와 오디오 캡처의 "spotify"가 서로 다른 소스를 가리키게 된 것)을 못 잡는다 — **전체 브랜치를 한 번에 보는 최종 리뷰가 반드시 필요한 이유** ② 재생 제어·상태 조회가 전부 정상이어도 실제 캡처 성공 여부는 반드시 파일 시스템 산출물(WAV 크기 증가)로 직접 확인해야 한다 — API 응답만으로는 오디오 출력 하드웨어 문제 같은 하위 레이어 실패를 가릴 수 있다
+
+## Phase 8.5 실기기 검증 상세 기록 — 2026-07-26 (macOS)
+
+Phase 8.5(중앙 배포 인프라)는 [설계 스펙](superpowers/specs/2026-07-26-central-deployment-ios-player-design.md) → [구현 계획](superpowers/plans/2026-07-26-phase-8-5-central-deployment.md)(7개 Task)을 `superpowers:subagent-driven-development`로 실행했다. Task 1~4(순수 코드)는 서브에이전트 구현+리뷰(각 1회 fix round 발생, 상세는 구현 계획 파일 참조)로 진행했고, Task 5~7(launchd·Tailscale·마일스톤 검증)은 서브에이전트가 대신할 수 없는 실기기·계정 로그인 단계라 사용자가 직접 진행했다.
+
+### Task 5 — launchd LaunchAgent
+
+`deploy/macos/com.musicna.api.plist` + `deploy/macos/install.sh`를 서브에이전트가 작성(plist XML 검증 `plutil -lint` 통과, 스크립트 `bash -n` 통과, 리뷰 승인). 사용자가 직접 `./deploy/macos/install.sh` 실행 → 설치·헬스체크(`curl http://127.0.0.1:8000/health`) 확인 완료. 운영 매뉴얼은 [deploy/macos/README.md](../deploy/macos/README.md)에 별도 작성(설치/상태확인/재시작/중지/제거/트러블슈팅).
+
+### Task 6 — Tailscale 설정
+
+Mac mini(디바이스명 `js-m4-mini`)에 Tailscale 설치, `tailscale status`/`tailscale ip -4`로 tailnet IP 확인, MagicDNS 활성화 확인까지는 문제없이 진행됐다.
+
+**발견한 문제**: iPhone(`iphone-15-pro-max`)을 tailnet에 가입시키고 로그인까지 마쳤는데도 `tailscale status`에 **137일째 offline**으로 표시되어 원격 접속(`/health`)이 DNS 오류로 실패했다. 컨트롤러가 `tailscale status`를 직접 조회해 원인을 좁혔다 — **iOS에서는 로그인만으로는 VPN이 연결되지 않는다.** 로그인 후 시스템이 띄우는 "VPN 구성 추가" 승인을 놓치거나 앱을 바로 닫으면, 로그인 상태와 무관하게 실제 VPN 터널은 꺼진 채로 남는다. 아이폰 Tailscale 앱에서 연결 토글을 직접 켜자 즉시 `tailscale status`에 `active; direct ...`로 전환되고 원격 접속이 성공했다. 이 교훈("로그인 = 연결이 아니다")은 [운영 매뉴얼의 Tailscale 절](../deploy/macos/README.md#원격-접근-tailscale)에 기록해 재발 시 빠르게 진단할 수 있도록 했다.
+
+### Task 7 — 전체 마일스톤 검증 (부분 완료)
+
+- ✅ **집 밖(모바일 데이터)에서 웹 UI 라이브러리 조회**: 확인 완료 — Tailscale 경유로 트랙 목록 정상 렌더
+- ⏳ **TUI 원격 접속·재생 제어**(`MUSICNA_API_URL`을 Tailscale 주소로 지정해 `musicna-tui` 실행): 이번 세션에서 시간 관계상 미확인 — **백로그로 이월**
+- ⏳ **재부팅 복구**(Mac mini 실제 재부팅 후 launchd 자동 복구 확인, 자동 로그인 설정 검증 겸함): 이번 세션에서 미확인 — **백로그로 이월**
+
+남은 두 항목은 PROGRESS.md 상단 "다음 할 일 (macOS)"에 등록해 다음 세션에서 이어서 확인한다.
 
 ## 협업 메모 (세션 재개/서브에이전트용)
 

@@ -944,28 +944,28 @@ Expected: `{"status":"ok"}` 표시 — 집 밖 네트워크(예: 모바일 데�
 
 **Interfaces:** 없음.
 
-- [ ] **Step 1: (macOS 실기기) TUI가 원격 api에 접속되는지 확인**
+- [ ] **Step 1: (macOS 실기기) TUI가 원격 api에 접속되는지 확인** — **보류(backlog)**: 2026-07-26 세션에서 확인 어려움, 다음 세션/기회에 확인 필요 (PROGRESS.md "다음 할 일" 참조)
 
 Mac mini가 아닌 다른 머신(또는 같은 Mac의 다른 터미널 세션에서 `MUSICNA_API_URL`을 Tailscale 주소로 지정)에서:
 
 Run: `MUSICNA_API_URL=http://<mac-mini-hostname>.<tailnet>.ts.net:8000 uv run musicna-tui`
 Expected: TUI가 뜨고 `PlayerPanel`에 Mac mini에서 실제 재생 중인 곡 정보가 표시됨(재생 중이 아니면 빈 상태) — space/n 키가 Mac mini의 실제 spotify_player를 제어하는지 확인
 
-- [ ] **Step 2: (macOS 실기기) 집 밖에서 라이브러리 조회 확인**
+- [x] **Step 2: (macOS 실기기) 집 밖에서 라이브러리 조회 확인** — 완료(2026-07-26)
 
 휴대폰 등 다른 tailnet 기기에서 모바일 데이터(집 wifi 아님)로 전환 후 `http://<mac-mini-hostname>.<tailnet>.ts.net:8000/`(웹 UI) 접속
 Expected: 라이브러리 트랙 목록이 정상 렌더됨
 
-- [ ] **Step 3: 재부팅 복구 확인**
+- [ ] **Step 3: 재부팅 복구 확인** — **보류(backlog)**: 2026-07-26 세션에서 확인 어려움, 다음 세션/기회에 확인 필요 (PROGRESS.md "다음 할 일" 참조)
 
 Mac mini를 재부팅(또는 로그아웃 후 재로그인)
 Expected: 자동 로그인 후 별도 조작 없이 `curl http://127.0.0.1:8000/health`가 곧 `{"status":"ok"}` 응답(launchd가 재기동)
 
-- [ ] **Step 4: `docs/PROGRESS.md` 갱신**
+- [x] **Step 4: `docs/PROGRESS.md` 갱신**
 
 Phase 8.5 체크리스트의 5개 항목을 전부 `[x]`로 변경하고, "실기기 검증 상세 기록" 섹션에 Task 1~7 검증 결과(위 Step 1~3의 실제 확인 내용, 발견된 문제가 있었다면 그 원인·수정)를 기존 Phase 1·2·7 기록과 같은 형식으로 추가한다. 작업 로그 표에도 한 줄 추가한다.
 
-- [ ] **Step 5: 커밋 및 푸시**
+- [x] **Step 5: 커밋 및 푸시**
 
 ```bash
 git add docs/PROGRESS.md
