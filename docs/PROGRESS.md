@@ -10,7 +10,7 @@
 - **작업 브랜치**: `claude/music-analysis-app-planning-rsfa6x`
 - **분담**: `capture-macos/`·`api/session/`은 macOS 로컬 담당, 원격은 `core/`·문서 담당. 작업 전 반드시 pull
 - **다음 할 일 (macOS)**: ① `uv run musicna-tui`를 실제 터미널에서 대화형으로 확인(이번 검증은 `run_test()` 기반 무헤드 통합 검증) ② 정상 레벨 곡 추가 캡처·축적. **주의**: 기본 오디오 출력 장치가 HDMI 등 볼륨 API 미지원 장치면 `--system-audio` 캡처가 조용히 실패한다 — 캡처 전 `SwitchAudioSource -c -t output`으로 확인, 필요시 내장 스피커로 전환(아래 Phase 7 기록 참조)
-- **다음 할 일 (원격)**: Phase 8(TUI 기능 동등화 — 검색·플레이리스트·실시간뷰·라이브러리 브라우저) 착수, 또는 Alembic 마이그레이션 도입
+- **다음 할 일 (원격)**: Phase 8(TUI 기능 동등화 — 검색·플레이리스트·실시간뷰·라이브러리 브라우저) 착수, 또는 Alembic 마이그레이션 도입. **2026-07-26 브레인스토밍으로 로드맵에 Phase 8.5(중앙 배포 인프라: Tailscale+launchd)를 신설하고 Phase 10(iOS 앱) 범위를 "자체 재생·캡처 기기"로 확정** — 설계는 [2026-07-26-central-deployment-ios-player-design.md](superpowers/specs/2026-07-26-central-deployment-ios-player-design.md), 아직 구현 계획(writing-plans)은 미작성. Phase 8 구현과 순서 무관하게 진행 가능(Phase 8.5는 인프라, Phase 8은 TUI 기능)
 
 ### 다음 세션 재개 체크리스트 (이 머신 또는 새 머신)
 
@@ -19,6 +19,7 @@
 3. `uv run pytest core/tests api/tests tui/tests` → 145 passed 기대(2026-07-26 기준 최신 수치, Phase 8 진행되면 늘어남)
 4. macOS에서 spotify_player/TUI 작업 시: `export PATH="$HOME/.cargo/bin:$PATH"`(이미 `.zshrc`에 추가돼 있으면 새 셸에서 자동), `spotify_player --version`으로 daemon feature 포함 여부 확인(`spotify_player --help`에 `-d`/`--daemon`이 보여야 함 — 안 보이면 아래 "spotify_player 설치 절차"부터 재수행)
 5. Phase 8 착수 시 참고 문서: 설계는 이미 [docs/superpowers/specs/2026-07-26-tui-player-orchestration-design.md](superpowers/specs/2026-07-26-tui-player-orchestration-design.md)에 있고(Phase 7·8 함께 설계됨), Phase 8용 새 구현 계획만 `superpowers:writing-plans`로 작성하면 됨(검색·플레이리스트를 `player.py`에 CLI 래퍼로 추가 → `/player/search`,`/player/playlists` 라우트 → TUI에 실시간뷰·라이브러리 위젯 추가, 웹의 `live.js`/`app.js` 패턴 재사용)
+6. Phase 8.5(중앙 배포 인프라)·Phase 10(iOS 앱) 착수 시 참고 문서: [docs/superpowers/specs/2026-07-26-central-deployment-ios-player-design.md](superpowers/specs/2026-07-26-central-deployment-ios-player-design.md) — Tailscale+launchd 배포 설계, iOS 자체 재생·캡처 타당성 조사(논의 과정·기각한 대안 포함)까지 기록돼 있음. 이 스펙 기반으로 `superpowers:writing-plans`로 구현 계획 작성 필요(아직 미작성). Phase 8.5는 Phase 8과 순서 무관하게 병행 가능
 
 ## Phase 체크리스트
 
@@ -98,10 +99,26 @@
 - [ ] 검색·플레이리스트(`/player/search`, `/player/playlists`)
 - [ ] 실시간 분석 뷰(코드·피아노 롤)를 TUI에 추가 (`/ws/live` 재사용)
 - [ ] 라이브러리 브라우저를 TUI에 추가 (`/tracks` 재사용)
+- [ ] TUI의 "자체 로컬 api 부트스트랩"(Phase 7) 제거 → 상시 중앙 api(Phase 8.5)에 접속만 하는 클라이언트로 전환
 
-### 이후 — Phase 9(macOS 앱)·Phase 10(iOS 뷰어 앱)
-- [ ] Phase 9: `api/`만 호출하는 macOS 네이티브 앱
-- [ ] Phase 10: SwiftUI + OpenAPI 생성 클라이언트, iOS 뷰어 겸 원격 제어
+### Phase 8.5 — 중앙 배포 인프라 (신규, 2026-07-26 설계)
+> 설계: [2026-07-26-central-deployment-ios-player-design.md](superpowers/specs/2026-07-26-central-deployment-ios-player-design.md). 구현 계획(writing-plans)은 아직 미작성 — 착수 시 이 스펙을 기반으로 작성
+- [ ] Tailscale 설치·설정(Mac mini + 클라이언트 기기), MagicDNS 호스트네임 확보
+- [ ] Mac mini 자동 로그인 설정 (재부팅 복구용)
+- [ ] `launchd` LaunchAgent plist 작성 — `uvicorn musicna_api.main:app` 상시 구동, KeepAlive로 크래시 재시작
+- [ ] 원격 오디오 인제스트 엔드포인트 신설 — PCM 청크 수신 → 실시간 미리보기(`musicna-live` 파이프라인 재사용) + 트랙 종료 시 WAV 완성 저장(`musicna-analyze` 배치가 그대로 집어감)
+- [ ] **(macOS)** 마일스톤: 집 밖에서 Tailscale로 api 접속 → 라이브러리 조회·재생 원격제어 확인
+
+### Phase 9 — macOS 네이티브 앱
+- [ ] `api/`만 호출하는 macOS 네이티브 앱(SwiftUI), Phase 8.5의 상시 중앙 api에 접속
+- [ ] 같은 기능 동등화·단계별 실기기 검증 패턴 적용
+
+### Phase 10 — iOS 앱 (범위 확정, 2026-07-26)
+> 설계·타당성 조사: [2026-07-26-central-deployment-ios-player-design.md](superpowers/specs/2026-07-26-central-deployment-ios-player-design.md) — cpal iOS 지원 확인, `librespot-golang`/gomobile 레퍼런스 발견, iOS 백그라운드 정책 리스크 조사 포함
+- [ ] SwiftUI + OpenAPI 생성 클라이언트, 라이브러리 뷰어 겸 원격 제어(기존 계획)
+- [ ] **(신규)** `librespot-golang`+gomobile 임베딩 스파이크 — iOS 앱이 실제 Spotify Connect 기기로 인식되는지부터 검증(가장 큰 미검증 영역)
+- [ ] **(신규)** 자체 재생 중 디코딩 PCM을 원격 인제스트로 스트리밍(포그라운드 전용, 백그라운드 상주 미지원)
+- [ ] **(신규)** `/ws/live` 네이티브 SwiftUI 구독 — 재생 중 실시간 코드·피아노 롤 표시(웹 `live.html`과 동일 이벤트 계약)
 
 ## 작업 로그
 
@@ -129,6 +146,7 @@
 | 2026-07-26 | **Phase 7 마일스톤 실기기 검증 통과**(macOS): rust 1.86→1.97 업그레이드 후 spotify_player를 daemon feature로 cargo 재빌드(Homebrew 버전은 `media-control` 기본 feature가 daemon 모드와 macOS에서 상호 배타적 — 실기기에서 최초 발견). `/system/start`·`/player/play|pause|volume|next` 전부 실제 Spotify 재생에 반응, 재생이 캡처(WAV 실시간 증가)·트랙 분할(다음곡 전환마다 정확히 분리 저장)에 그대로 반영됨 확인. `/system/stop`이 SIGINT로 WAV 정상 마무리. `musicna-tui`를 `run_test()` 기반 무헤드 통합 검증으로 확인(위젯 실데이터 표시, space/n 키 → 실제 재생 제어) | **실기기 발견 버그**: `SpotifyPlayerDaemon`이 `subprocess.Popen` 핸들로 생명주기를 추적했으나 spotify_player daemon은 daemonize crate로 더블포크 데몬화 — 원래 핸들이 데몬화 직후 종료돼 `is_running()` 상시 오탐, `stop()`이 실제 데몬을 못 죽이고 좀비로 방치. `pgrep -f`/`pkill -f` 기반으로 교체(서브에이전트 fix+리뷰 통과, 84 passed) 후 재검증 완료 |
 | 2026-07-26 | **최종 전체 브랜치 리뷰(opus, 13 commits) → 발견 버그 수정·재검증**: 세션 캡처가 여전히 `--app com.spotify.client`(데스크톱 앱)만 필터링 — Task 4(메타데이터)와 Task 5(오디오 캡처 대상)가 서로 다른 "spotify"를 가리키던 task-scoped 리뷰의 사각지대. 컨트롤러가 Spotify.app 완전 종료 상태로 재현해 확정 → `SystemOrchestrator.start()`에 `--system-audio` 추가로 수정(외 Minor 4건 동시 수정, 145 passed) → 스코프된 재리뷰 통과 → 컨트롤러가 재검증(도중 별개의 HDMI 출력 볼륨 API 문제 발견·회피) | 서브에이전트 기반 개발(subagent-driven-development)의 각 Task 리뷰는 자기 diff만 보므로 여러 Task에 걸친 이름은 같지만 실제로 다른 개념(메타데이터의 "spotify" vs 캡처의 "spotify")의 불일치를 못 잡음 — 전체 브랜치 최종 리뷰가 반드시 필요했던 사례 |
 | 2026-07-26 | 문서 정리: PLAN.md Phase 7 완료 표시, PROGRESS.md에 재개 체크리스트·설계 결정 배경(전환 과정)·환경 이슈(uv sync가 ML extras 제거)·이 머신 영구 환경 변경사항 정리 추가 | 다른 머신에서도 이 문서만으로 Phase 7 상태를 재현·재개할 수 있도록 정리 |
+| 2026-07-26 | Phase 8 착수 전 브레인스토밍: "중앙 DB/api를 실제로 어디서 운영할 것인가" 논의 → Tailscale+launchd 상시 배포 구조(Phase 8.5 신설) 결정. "spotify_player·캡처를 앱마다 따로" 제안을 검토하며 iOS는 시스템 오디오 캡처 API 자체가 없다는 제약 확인 → "iOS 앱 자신이 Spotify Connect 기기가 되면 캡처 권한 문제가 사라진다"는 대안 도출, 웹 조사로 타당성 확인(cpal iOS 지원 확인, `librespot-golang`/gomobile 레퍼런스 발견, iOS 백그라운드 정책 리스크 확인) → Phase 10 범위를 "포그라운드 전용 자체 재생·캡처 기기"로 확정. 설계 스펙 작성·커밋 후 PLAN.md·PROGRESS.md 반영 | 설계 스펙: [2026-07-26-central-deployment-ios-player-design.md](superpowers/specs/2026-07-26-central-deployment-ios-player-design.md). 논의 과정(대안 비교·기각 근거)까지 스펙 문서에 상세히 기록. 구현 계획(writing-plans)은 아직 미작성 — Phase 8.5·10 착수 시 작성 필요 |
 
 ## 실기기 검증 상세 기록 — 2026-07-25 (macOS)
 
