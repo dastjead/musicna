@@ -105,3 +105,36 @@ def test_analyze_track_structure_without_bpm(monkeypatch, tmp_path):
     result = analyze_track(tmp_path / "missing.wav", None, TrackMeta(title="Quiet"))
     assert result.bpm is None
     assert [s.label for s in result.sections] == ["intro"]
+
+
+def test_analyze_track_fills_chord_structure_when_key_and_sections_present(monkeypatch, tmp_path):
+    """key/mode와 sections가 모두 있으면 섹션 요약·루프 탐지가 채워져야 한다."""
+    fake = types.ModuleType("allin1")
+    seg = types.SimpleNamespace(label="verse", start=0.0, end=8.0)
+    fake.analyze = lambda path, **kw: types.SimpleNamespace(bpm=120.0, segments=[seg])
+    monkeypatch.setitem(sys.modules, "allin1", fake)
+    monkeypatch.setattr(analyze_mod, "pkg_version", lambda name: "0.0-test")
+
+    s = stream.Stream()
+    for name in ["C4 E4 G4", "G3 B3 D4", "A3 C4 E4", "F3 A3 C4"]:
+        c = m21chord.Chord(name)
+        c.quarterLength = 4.0  # 120bpm → 2초씩, 4개 = 8초 = 섹션 길이와 일치
+        s.append(c)
+    midi = tmp_path / "track.mid"
+    s.write("midi", fp=str(midi))
+
+    result = analyze_track(tmp_path / "missing.wav", midi, TrackMeta(title="Structured"))
+
+    assert (result.key, result.mode) == ("C", "major")
+    assert len(result.section_chord_summaries) == 1
+    assert result.section_chord_summaries[0].section_label == "verse"
+    assert result.section_chord_summaries[0].roman_progression == ["I", "V", "vi", "IV"]
+    # 루프 탐지는 min_length=4 기본값 — 이 픽스처는 4개뿐이라 반복이 없으므로 빈 리스트가 정상
+    assert result.chord_loops == []
+
+
+def test_analyze_track_chord_structure_empty_without_key(tmp_path):
+    """key가 없으면(예: 노트 없는 MIDI) 크래시 없이 빈 리스트여야 한다."""
+    result = analyze_track(tmp_path / "missing.wav", None, TrackMeta(title="NoKey"))
+    assert result.section_chord_summaries == []
+    assert result.chord_loops == []

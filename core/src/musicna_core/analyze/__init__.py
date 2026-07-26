@@ -12,6 +12,7 @@ from datetime import datetime
 from importlib.metadata import version as pkg_version
 from pathlib import Path
 
+from musicna_core.analyze.chord_structure import build_roman_sequence, find_chord_loops, summarize_sections
 from musicna_core.analyze.chords import extract_chords_from_midi, merge_chord_tracks
 from musicna_core.analyze.keys import estimate_key_from_midi
 from musicna_core.models import AnalysisResult, ChordEvent, MoodTag, Section, TrackMeta
@@ -128,6 +129,13 @@ def analyze_track(audio_path: Path, midi_path: Path | None, meta: TrackMeta) -> 
     if clap_ver:
         versions["laion-clap"] = clap_ver
 
+    section_chord_summaries: list = []
+    chord_loops: list = []
+    if key is not None and sections:
+        roman_sequence = build_roman_sequence(chords, key, mode)
+        section_chord_summaries = summarize_sections(roman_sequence, sections)
+        chord_loops = find_chord_loops(roman_sequence, min_length=4)
+
     return AnalysisResult(
         track=meta,
         bpm=bpm,
@@ -136,6 +144,8 @@ def analyze_track(audio_path: Path, midi_path: Path | None, meta: TrackMeta) -> 
         sections=sections,
         chords=chords,
         moods=moods,
+        section_chord_summaries=section_chord_summaries,
+        chord_loops=chord_loops,
         midi_path=str(midi_path) if midi_path else None,
         engine_versions=versions,
         analyzed_at=datetime.now(),
