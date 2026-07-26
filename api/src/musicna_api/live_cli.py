@@ -83,6 +83,38 @@ def post_events(api_base: str, events: list[LiveEvent]) -> None:
     urllib.request.urlopen(req, timeout=5).read()
 
 
+def process_chunk(
+    tracker: LiveChordTracker,
+    samples: np.ndarray,
+    sample_rate: int,
+    offset_s: float,
+    transcribe_chunk: Callable[[np.ndarray, int], Iterator[Any]],
+    chord_poll_s: float = 1.0,
+) -> list[LiveEvent]:
+    """청크 하나를 전사→노트추적→코드폴링→진행이벤트까지 처리해 LiveEvent 목록을 산출한다.
+
+    로컬 CLI(`run_live`)와 원격 인제스트(`remote_capture.py`)가 공유하는 순수 함수 —
+    부작용은 tracker 상태 갱신뿐이고, 전송(post)은 호출 측 책임이다.
+    """
+    events: list[LiveEvent] = list(
+        adapt_muscriptor_events(transcribe_chunk(samples, sample_rate), offset_s)
+    )
+    for ev in events:
+        if isinstance(ev, LiveNoteOn):
+            tracker.note_on(ev.index, ev.pitch, ev.start_s)
+        elif isinstance(ev, LiveNoteOff):
+            tracker.note_off(ev.index, ev.end_s)
+
+    chunk_end = offset_s + samples.size / sample_rate
+    t = offset_s + chord_poll_s
+    while t <= chunk_end + 1e-9:
+        if chord := tracker.poll(t):
+            events.append(chord)
+        t += chord_poll_s
+    events.append(LiveProgress(chunk_start_s=round(offset_s, 3), chunk_end_s=round(chunk_end, 3)))
+    return events
+
+
 def run_live(
     stdin: BinaryIO,
     transcribe_chunk: Callable[[np.ndarray, int], Iterator[Any]],
@@ -94,23 +126,7 @@ def run_live(
     tracker = LiveChordTracker()
     chunks = 0
     for samples, offset_s in read_pcm_chunks(stdin, chunk_s=chunk_s):
-        events: list[LiveEvent] = list(
-            adapt_muscriptor_events(transcribe_chunk(samples, CAPTURE_SR), offset_s)
-        )
-        for ev in events:
-            if isinstance(ev, LiveNoteOn):
-                tracker.note_on(ev.index, ev.pitch, ev.start_s)
-            elif isinstance(ev, LiveNoteOff):
-                tracker.note_off(ev.index, ev.end_s)
-
-        chunk_end = offset_s + samples.size / CAPTURE_SR
-        t = offset_s + chord_poll_s
-        while t <= chunk_end + 1e-9:
-            if chord := tracker.poll(t):
-                events.append(chord)
-            t += chord_poll_s
-        events.append(LiveProgress(chunk_start_s=round(offset_s, 3), chunk_end_s=round(chunk_end, 3)))
-
+        events = process_chunk(tracker, samples, CAPTURE_SR, offset_s, transcribe_chunk, chord_poll_s)
         try:
             post(events)
         except Exception:

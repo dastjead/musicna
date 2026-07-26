@@ -5,7 +5,8 @@ import types
 
 import numpy as np
 
-from musicna_api.live_cli import CAPTURE_SR, adapt_muscriptor_events, read_pcm_chunks, run_live
+from musicna_api.live_cli import CAPTURE_SR, adapt_muscriptor_events, process_chunk, read_pcm_chunks, run_live
+from musicna_core.analyze.live_chords import LiveChordTracker
 from musicna_core.models import LiveChord, LiveNoteOff, LiveNoteOn, LiveProgress
 
 
@@ -60,3 +61,29 @@ def test_run_live_survives_post_failure():
         raise ConnectionError("api down")
 
     assert run_live(stdin, lambda s, sr: iter([]), failing_post) == 1
+
+
+def test_process_chunk_emits_notes_chords_progress():
+    def fake_transcribe(samples, sr):
+        for i, p in enumerate([48, 60, 64, 67]):
+            yield types.SimpleNamespace(pitch=p, start_time=0.0, index=i, instrument=None)
+
+    tracker = LiveChordTracker()
+    samples = np.zeros(CAPTURE_SR * 5, dtype=np.float32)
+    events = process_chunk(tracker, samples, CAPTURE_SR, 0.0, fake_transcribe, chord_poll_s=1.0)
+
+    assert sum(isinstance(e, LiveNoteOn) for e in events) == 4
+    chords = [e for e in events if isinstance(e, LiveChord)]
+    assert chords and chords[0].chord == "C"
+    assert len(chords) == 1
+    [progress] = [e for e in events if isinstance(e, LiveProgress)]
+    assert (progress.chunk_start_s, progress.chunk_end_s) == (0.0, 5.0)
+
+
+def test_process_chunk_respects_sample_rate():
+    """샘플레이트가 CAPTURE_SR과 달라도 진행 이벤트 구간이 정확해야 한다(원격 인제스트용 일반화)."""
+    tracker = LiveChordTracker()
+    samples = np.zeros(16000, dtype=np.float32)  # 16kHz 1초
+    events = process_chunk(tracker, samples, 16000, 10.0, lambda s, sr: iter([]), chord_poll_s=1.0)
+    [progress] = [e for e in events if isinstance(e, LiveProgress)]
+    assert (progress.chunk_start_s, progress.chunk_end_s) == (10.0, 11.0)
