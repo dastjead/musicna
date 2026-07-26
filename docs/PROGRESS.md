@@ -9,7 +9,7 @@
 - **현재 Phase**: **Phase 0~7 전체 마일스톤 실기기 검증 통과**. Phase 7은 spotify_player 재생 엔진 통합(핵심 재생 제어)까지 완료, 검색·플레이리스트·TUI 실시간뷰/라이브러리는 Phase 8로 이월
 - **작업 브랜치**: `claude/music-analysis-app-planning-rsfa6x`
 - **분담**: `capture-macos/`·`api/session/`은 macOS 로컬 담당, 원격은 `core/`·문서 담당. 작업 전 반드시 pull
-- **다음 할 일 (macOS)**: ① `uv run musicna-tui`를 실제 터미널에서 대화형으로 확인(이번 검증은 `run_test()` 기반 무헤드 통합 검증) ② 정상 레벨 곡 추가 캡처·축적
+- **다음 할 일 (macOS)**: ① `uv run musicna-tui`를 실제 터미널에서 대화형으로 확인(이번 검증은 `run_test()` 기반 무헤드 통합 검증) ② 정상 레벨 곡 추가 캡처·축적. **주의**: 기본 오디오 출력 장치가 HDMI 등 볼륨 API 미지원 장치면 `--system-audio` 캡처가 조용히 실패한다 — 캡처 전 `SwitchAudioSource -c -t output`으로 확인, 필요시 내장 스피커로 전환(아래 Phase 7 기록 참조)
 - **다음 할 일 (원격)**: Phase 8(TUI 기능 동등화 — 검색·플레이리스트·실시간뷰·라이브러리 브라우저) 착수, 또는 Alembic 마이그레이션 도입
 
 ## Phase 체크리스트
@@ -225,6 +225,16 @@ Homebrew 기본 배포판(`brew install spotify_player`)은 `daemon` cargo featu
 - 재생 중 캡처 WAV가 실시간으로 증가(3.2MB→6.4MB→7.9MB, 수 초 간격 확인), `next` 명령으로 곡이 넘어갈 때마다 정확히 새 트랙으로 분리 저장(`002 - Yoko Kanno - My Favorite Things`, `003 - Yoko Kanno - Beni` 각각 WAV+JSON 사이드카)
 - `POST /system/stop` → 세션 프로세스에 SIGINT 전달, WAV가 정상 마무리 저장(파일 크기 고정, JSON 완성)되고 프로세스 완전 종료(좀비 없음), 데몬도 pkill로 완전 정리됨
 - `musicna-tui`는 이 세션에 대화형 tty가 없어 Textual `App.run_test()`로 실제 api 서버(+실제 spotify_player 데몬)에 연결하는 무헤드 통합 스크립트로 검증: `PlayerPanel`이 실제 곡명·아티스트·볼륨을 표시, `SessionStatus`가 "데몬: 켜짐 | 캡처: 녹음 중"을 정확히 표시, `space`/`n` 키 입력이 실제로 재생 상태 토글·다음곡 전환을 일으킴(위젯 텍스트 갱신은 2~3초 폴링 주기만큼 지연되지만 백엔드 반응은 즉시 확인됨). 실제 터미널에서의 대화형 확인은 다음 세션 과제로 남김
+
+### 최종 전체 브랜치 리뷰에서 발견·수정한 두 번째 버그: 오디오 캡처가 여전히 데스크톱 앱만 필터링
+
+Task 13에서 "검증 통과"로 기록했던 재생↔캡처 연동은, 실은 그 시점에 Spotify 데스크톱 앱이 우연히 함께 실행 중이었기 때문에 통과한 것이었다 — 전체 구현(Task 1~13)이 끝난 뒤 진행한 **최종 전체 브랜치 리뷰**(opus 모델, 13개 커밋 전체 diff)가 이 문제를 지적했고, 컨트롤러가 Spotify.app을 완전히 종료(`osascript -e 'tell application "Spotify" to quit'`)한 상태로 직접 재현해 확정했다.
+
+- **원인**: `api/session/cli.py`의 `_APP_BUNDLE_IDS = {"spotify": "com.spotify.client", ...}`가 여전히 살아있어, `SystemOrchestrator.start()`가 세션 캡처 서브프로세스를 스폰할 때 `--system-audio`를 안 줘서 기본값(`capture_app_only=True`)으로 캡처 헬퍼에 `--app com.spotify.client`가 전달됐다. `capture-macos/Sources/musicna-capture/Capture.swift:88-97`의 `SCContentFilter(display:including:[app]:exceptingWindows:)`는 정확히 그 번들ID(데스크톱 앱)만 캡처하고, 앱이 실행 중이 아니면 `exit(1)`로 즉시 종료한다. Task 4가 **메타데이터** 경로는 spotify_player로 정확히 교체했지만, Task 5가 스폰하는 세션의 **오디오 캡처 대상**은 옛 방식에 머물러 있었다 — task-scoped 리뷰들은 각자 자기 파일만 봤기 때문에 이 두 Task 사이의 불일치를 못 잡았고, 전체 diff를 보는 최종 리뷰에서만 드러났다
+- **재현**: Spotify.app 완전 종료 → `POST /system/start` → 3~4초 후 세션 프로세스가 `ps aux`에서 사라짐, `/system/status`가 `session_capturing: false`로 전환
+- **수정**: `SystemOrchestrator.start()`의 세션 스폰 커맨드에 `--system-audio` 추가(`api/system.py`) — `session/cli.py`의 기존 옵션을 그대로 활용, `cli.py`·`Capture.swift`는 무수정
+- **수정 후 재검증**(컨트롤러 직접, Spotify.app 완전 종료 상태): 세션 프로세스가 살아남았으나(로그: `musicna-capture: capturing system audio`) 이번엔 새 WAV가 안 생기는 **별개의 환경 문제**를 만남 — 기본 오디오 출력이 볼륨 API 미지원 HDMI TV 장치(`output volume: missing value`)로 잡혀 있었다. `switchaudio-osx`(`brew install switchaudio-osx`)로 Mac mini 내장 스피커로 전환하니 즉시 캡처 성공(21MB WAV, JSON 사이드카 정상 생성, `/system/stop`으로 정상 마무리). 검증 후 출력 장치 원복
+- **교훈 두 가지**: ① 서브에이전트별 task-scoped 리뷰는 각 Task의 diff만 보므로, 여러 Task에 걸친 "이름은 같은데 실제로는 다른 두 가지 일"(메타데이터의 "spotify"와 오디오 캡처의 "spotify"가 서로 다른 소스를 가리키게 된 것)을 못 잡는다 — **전체 브랜치를 한 번에 보는 최종 리뷰가 반드시 필요한 이유** ② 재생 제어·상태 조회가 전부 정상이어도 실제 캡처 성공 여부는 반드시 파일 시스템 산출물(WAV 크기 증가)로 직접 확인해야 한다 — API 응답만으로는 오디오 출력 하드웨어 문제 같은 하위 레이어 실패를 가릴 수 있다
 
 ## 협업 메모 (세션 재개/서브에이전트용)
 
