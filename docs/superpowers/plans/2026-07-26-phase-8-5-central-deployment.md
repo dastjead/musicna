@@ -980,3 +980,20 @@ git push
 - **스펙 커버리지**: 설계 스펙의 "Phase 8.5" 항목(Tailscale·launchd·단일 api 프로세스·원격 인제스트) 전부 Task 1~7에 매핑됨. "TUI 자체 부팅 제거"는 Task 4. iOS 클라이언트 자체(Phase 10)는 이 계획 범위 밖 — 별도 계획에서 다룸.
 - **플레이스홀더 스캔**: 없음 — 전 Task가 실행 가능한 코드·명령으로 작성됨.
 - **타입 일관성**: `process_chunk` 시그니처(Task 1에서 정의)가 Task 2의 `RemoteCaptureSession.feed`에서 쓰는 인자 순서(`tracker, samples, sample_rate, offset_s, transcribe_chunk, chord_poll_s`)와 일치. `RemoteCaptureManager.start/feed/end`(Task 2에서 정의)가 Task 3 라우터에서 쓰는 시그니처와 일치.
+
+## 최종 전체 브랜치 리뷰 (2026-07-26, opus, 범위 `b227ce7..e470241`)
+
+Task 1~7 전체 diff(16 커밋)를 대상으로 최종 리뷰 진행. **판정: Ready to merge (fix 후)**.
+
+**교차 태스크 검증(태스크별 리뷰가 놓칠 수 있는 부분)**: `RemoteCaptureManager`의 WAV+JSON 산출물이 `api/batch.py`의 `analyze_captured()`가 스캔하는 패턴(글롭·사이드카 스키마)과 정확히 일치함을 확인 — 로컬 캡처와 원격 캡처가 같은 배치 분석 파이프라인에 안전하게 합류. broadcaster 이동도 깨끗하게 단일 인스턴스 유지. 두 fix round(비정렬 청크 트리밍, async def 전환)가 서로 충돌 없이 조합됨을 최종 파일 상태로 확인.
+
+**fix wave(1회, 커밋 `0a68f27`)로 수정한 항목**:
+- **Important**: `upload_chunk`가 동기적으로 `manager.feed()`(내부적으로 muscriptor 전사 포함, 청크당 약 1.8초)를 호출해 FastAPI 이벤트 루프를 블로킹하던 문제 → `run_in_threadpool`로 오프로드, `_publish`는 이벤트 루프 스레드에 유지
+- **Minor(실질 버그)**: 원격 세션이 `captured_at`을 안 보내면(iOS 클라이언트가 아직 없어 옵션 필드로 남아있었음) `has_analysis()`의 dedup 키 `(title, artist, captured_at)`가 충돌해 두 번째 녹음이 조용히 스킵될 수 있었음 → `RemoteCaptureManager.start()`에서 `captured_at`이 없으면 서버 수신 시각으로 스탬핑
+
+**스코프된 재리뷰에서 발견한 새 이슈 — PARK(추가 fix wave 없이 보류)**:
+- **Important**: `run_in_threadpool` 오프로드로 인해 이전에는 이벤트 루프 단일 스레드 특성상 암묵적으로 보장되던 "같은 세션에 대한 동시 처리 배제"가 사라짐 — 같은 `session_id`에 대한 동시 `/chunk` 요청(또는 `/chunk`와 `/end`의 경합)이 `RemoteCaptureSession`의 비동기화 상태(WAV writer·pending 버퍼·chord tracker)에서 진짜 데이터 레이스를 일으킬 수 있음
+- **Ruling**: 실재하는 이슈이지만 **현재 이 엔드포인트의 실제 호출자가 없음**(Phase 10 iOS 클라이언트가 아직 구현 전) — blast radius 0으로 판단해 park. **Phase 10 착수 시 선행 조건으로 명시**: `session_id`별 `asyncio.Lock`(또는 `threading.Lock`)으로 `feed()`/`end()`를 직렬화한 뒤에 실제 스트리밍 클라이언트를 연결할 것. PLAN.md 리스크 절·PROGRESS.md Phase 10 체크리스트에도 반영.
+- 그 외 out-of-scope로 남긴 Minor(세션 누수 타임아웃 없음, `_publish`가 스탬핑 전 원본 meta를 방송해 실시간 이벤트와 저장 아티팩트의 `captured_at`이 다를 수 있음, 죽은 `ApiClient.health()`, 로컬/원격 파일 인덱싱 스킴이 같은 디렉터리를 공유하게 된 점)는 전부 낮은 우선순위 백로그로 남김 — 실사용(Phase 9·10)에서 문제가 될 때 재검토
+
+최종 재리뷰: 원 2건 fix 모두 ADDRESSED 확인, 새 breakage는 위 park 처리한 1건 외 없음.

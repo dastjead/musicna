@@ -116,7 +116,7 @@ musicna/
 - **Phase 8 — TUI 기능 동등화**: 검색·플레이리스트(`/player/search`, `/player/playlists`) 추가, 기존 `/ws/live`·`/tracks`를 재사용해 실시간 분석 뷰(코드·피아노 롤)와 라이브러리 브라우저를 TUI에 추가. TUI의 "자체 로컬 api 부트스트랩"(Phase 7)은 제거하고 상시 중앙 api에 접속만 하는 클라이언트로 전환(Phase 8.5 전제). *마일스톤: 웹 UI로 할 수 있는 모든 열람 작업을 TUI에서도 수행 가능*
 - **Phase 8.5 — 중앙 배포 인프라** (신규, 2026-07-26 설계): Tailscale(WireGuard 메시 VPN)로 집 밖에서도 접근 가능하게 하고, Mac mini를 자동 로그인+launchd LaunchAgent로 상시 서비스화 — api 프로세스가 정확히 하나만 상시 구동되며 DB·캡처·spotify_player를 독점 소유. 원격 오디오 인제스트 엔드포인트(청크 스트리밍 → 실시간 미리보기+WAV 완성 저장) 신설. 인증 계층은 Tailscale의 네트워크 레벨 신뢰로 대체(미구현). 설계: [docs/superpowers/specs/2026-07-26-central-deployment-ios-player-design.md](superpowers/specs/2026-07-26-central-deployment-ios-player-design.md). *마일스톤: 집 밖에서 Tailscale로 api에 접속해 라이브러리 조회·재생 원격제어 가능*
 - **Phase 9 — macOS 네이티브 앱**: 웹·TUI와 동일하게 `api/`만 호출하는 독립 클라이언트, Phase 8.5의 상시 중앙 api에 접속. 같은 패턴(기능 동등화, 단계별 실기기 검증)을 따름
-- **Phase 10 — iOS 앱** (범위 확정, 2026-07-26): `api/`만 호출하는 라이브러리 뷰어·원격 제어(SwiftUI) 겸, **자체 Spotify Connect 재생·캡처 기기**(신규) — `librespot-golang`+gomobile 임베딩으로 앱이 포그라운드로 열려 있는 동안 직접 재생하며 디코딩 PCM을 원격 인제스트로 스트리밍(iOS는 시스템 오디오 캡처 API 자체가 없어 "자체 재생 중 버퍼 분기" 방식만 가능, 백그라운드 상주는 iOS 정책상 미지원). 재생 중엔 `/ws/live`를 네이티브 SwiftUI로 구독해 실시간 코드·피아노 롤 표시(웹 `live.html`과 동일 이벤트 계약 재사용). 설계·타당성 조사: [docs/superpowers/specs/2026-07-26-central-deployment-ios-player-design.md](superpowers/specs/2026-07-26-central-deployment-ios-player-design.md)
+- **Phase 10 — iOS 앱** (범위 확정, 2026-07-26): `api/`만 호출하는 라이브러리 뷰어·원격 제어(SwiftUI) 겸, **자체 Spotify Connect 재생·캡처 기기**(신규) — `librespot-golang`+gomobile 임베딩으로 앱이 포그라운드로 열려 있는 동안 직접 재생하며 디코딩 PCM을 원격 인제스트로 스트리밍(iOS는 시스템 오디오 캡처 API 자체가 없어 "자체 재생 중 버퍼 분기" 방식만 가능, 백그라운드 상주는 iOS 정책상 미지원). 재생 중엔 `/ws/live`를 네이티브 SwiftUI로 구독해 실시간 코드·피아노 롤 표시(웹 `live.html`과 동일 이벤트 계약 재사용). **착수 전 선행 조건**: `remote_capture.py`에 `session_id`별 동시성 lock 추가(위 리스크 절 참조). 설계·타당성 조사: [docs/superpowers/specs/2026-07-26-central-deployment-ios-player-design.md](superpowers/specs/2026-07-26-central-deployment-ios-player-design.md)
 
 모든 클라이언트(웹·TUI·macOS·iOS 앱)는 독립된 인터페이스이되 `api/`가 제공하는 기능은 동등하게 갖춘다 — 어느 하나에만 있는 기능을 만들지 않는다. (단, 캡처처럼 플랫폼 능력에 종속된 기능은 예외 — macOS의 ScreenCaptureKit 캡처, iOS의 자체 재생·캡처는 각 플랫폼에서만 가능하다는 제약 자체를 부정하지 않는다)
 
@@ -129,6 +129,7 @@ musicna/
 - **1.4B 모델 + 실시간** — 실시간 미리보기는 small(103M) 모델, 배치 확정 분석은 large 모델로 이원화
 - **api 인증 부재** — Phase 8.5는 Tailscale의 네트워크 레벨 신뢰로 대체하고 별도 인증 계층을 만들지 않음(터널 밖 노출 없음이 전제). 공인 인터넷 노출로 전환 시 반드시 인증 추가 필요
 - **iOS 자체 재생·캡처 미검증** — `librespot-golang`(Go) 임베딩이 실제 iOS에서 Spotify Connect 기기로 인식되는지 자체가 스파이크 필요, iOS 백그라운드 정책상 포그라운드 전용으로만 동작 가능(공식 Spotify 앱도 백그라운드 Connect 안정성 이슈가 알려져 있음). 상세는 [Phase 8.5·10 설계 스펙](superpowers/specs/2026-07-26-central-deployment-ios-player-design.md) 참조
+- **원격 인제스트 동시성 미보호(Phase 10 선행 조건)** — Phase 8.5 최종 리뷰(2026-07-26)에서 발견: `remote_capture.py`의 `/remote/audio/sessions/{id}/chunk`가 `run_in_threadpool`로 전사를 오프로드하면서, 같은 `session_id`에 대한 동시 요청이 `RemoteCaptureSession`의 비동기화 상태(WAV writer·pending 버퍼·chord tracker)에서 경합할 수 있게 됨. 현재는 실제 호출자가 없어(iOS 클라이언트 미구현) 영향 없이 park됨 — **Phase 10에서 실제 스트리밍 클라이언트를 붙이기 전에 `session_id`별 lock을 반드시 추가해야 함**(상세: [구현 계획의 "최종 전체 브랜치 리뷰" 절](superpowers/plans/2026-07-26-phase-8-5-central-deployment.md))
 
 ## 검증 방법
 
