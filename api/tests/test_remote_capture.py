@@ -75,3 +75,21 @@ def test_stereo_downmix_for_transcription(manager):
     events = manager.feed(session_id, stereo.tobytes())
     [progress] = [e for e in events if isinstance(e, LiveProgress)]
     assert (progress.chunk_start_s, progress.chunk_end_s) == (0.0, 1.0)
+
+
+def test_feed_non_frame_aligned_chunk_trims_without_error(manager):
+    """Non-frame-aligned PCM chunks should be trimmed, not raise ValueError."""
+    session_id = manager.start(TrackMeta(title="곡"), sample_rate=16000, channels=1, chunk_s=5.0)
+    # 0.5 seconds = 8000 samples = 32000 bytes for mono float32
+    # Add 3 trailing bytes that don't complete a frame (4 bytes per sample)
+    silence_bytes = _silence(0.5, 16000)
+    non_aligned = silence_bytes + b"\x00\x00\x00"  # 32003 bytes total
+
+    # Should not raise ValueError; instead trim to 32000 bytes and return no events
+    events = manager.feed(session_id, non_aligned)
+    assert events == []
+
+    # Finalize and verify WAV has exactly 8000 frames (the trailing 3 bytes discarded)
+    wav_path = manager.end(session_id)
+    with wave.open(str(wav_path), "rb") as w:
+        assert w.getnframes() == 8000

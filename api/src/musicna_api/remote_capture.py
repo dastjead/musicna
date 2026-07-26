@@ -76,8 +76,12 @@ class RemoteCaptureSession:
 
     def feed(self, raw_float32: bytes) -> list[LiveEvent]:
         """PCM 청크를 WAV에 기록하고, chunk_s 분량이 쌓일 때마다 실시간 이벤트를 산출한다."""
-        if not raw_float32:
+        frame_bytes = 4 * self.channels
+        usable = len(raw_float32) - (len(raw_float32) % frame_bytes)
+        if usable == 0:
             return []
+        raw_float32 = raw_float32[:usable]
+
         self._wav.writeframes(float32_to_int16(raw_float32))
 
         samples = np.frombuffer(raw_float32, dtype=np.float32)
