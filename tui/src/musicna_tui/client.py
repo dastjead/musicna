@@ -54,5 +54,9 @@ class ApiClient:
         r.raise_for_status()
         return r.json()
 
+    @property
+    def base_url(self) -> str:
+        return str(self._http.base_url)
+
     def close(self) -> None:
         self._http.close()

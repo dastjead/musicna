@@ -95,3 +95,8 @@ def test_http_error_raises():
         return httpx.Response(503, json={"detail": "daemon not running"})
     with pytest.raises(httpx.HTTPStatusError):
         _client_with(handler).player_play()
+
+
+def test_base_url_property_reflects_constructor_arg():
+    client = ApiClient(base_url="http://mac-mini.tailnet.ts.net:8000")
+    assert client.base_url == "http://mac-mini.tailnet.ts.net:8000"
