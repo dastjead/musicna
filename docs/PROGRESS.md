@@ -110,7 +110,7 @@
 > | 2 | `RemoteCaptureManager`/`Session` 구현 | ✅ 완료, fix round 1(비정렬 PCM 청크 가드 추가)後 리뷰 통과 | `6afbf2d`, `22a4a5c` |
 > | 3 | `/remote/audio/*` REST 엔드포인트 | ✅ 완료, fix round 1(start_session/end_session async 전환)後 리뷰 통과 | `89ad83f`, `9950013` |
 > | 4 | TUI 자체 부팅 제거 | ✅ 완료, 리뷰 통과(수정 없음) | `9d57f78` |
-> | 5 | launchd LaunchAgent | ⏳ 부분 완료 — plist·install.sh 작성·리뷰 통과, **실제 설치·검증은 사용자와 직접 진행 대기 중** | `aaeb595` |
+> | 5 | launchd LaunchAgent | ⏳ 부분 완료 — plist·install.sh 작성·리뷰 통과, **실제 설치·검증은 사용자와 직접 진행 대기 중**. 운영 매뉴얼: [deploy/macos/README.md](../deploy/macos/README.md) | `aaeb595` |
 > | 6 | Tailscale 설정 | 대기 | — |
 > | 7 | 전체 마일스톤 검증 | 대기 | — |
 - [ ] Tailscale 설치·설정(Mac mini + 클라이언트 기기), MagicDNS 호스트네임 확보
