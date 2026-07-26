@@ -2,6 +2,7 @@
 
 import json
 import wave
+from datetime import datetime, timedelta
 
 import numpy as np
 import pytest
@@ -75,6 +76,25 @@ def test_stereo_downmix_for_transcription(manager):
     events = manager.feed(session_id, stereo.tobytes())
     [progress] = [e for e in events if isinstance(e, LiveProgress)]
     assert (progress.chunk_start_s, progress.chunk_end_s) == (0.0, 1.0)
+
+
+def test_start_stamps_captured_at_when_missing(manager):
+    """캡처 시각을 안 보내는 원격 클라이언트(향후 iOS 앱)도 유일한 captured_at을 받아야 한다.
+
+    core/store/repository.py의 has_analysis()는 (title, artist, captured_at)로 dedup하므로,
+    captured_at=None이 그대로 남으면 같은 제목의 두 번째 녹음이 "이미 분석됨"으로 오인되어
+    유실된다 — 서버가 수신 시각을 스탬프해서 막는다.
+    """
+    meta = TrackMeta(title="곡")
+    assert meta.captured_at is None
+
+    before = datetime.now()
+    session_id = manager.start(meta, sample_rate=16000, channels=1)
+    after = datetime.now()
+
+    session = manager._sessions[session_id]
+    assert session.meta.captured_at is not None
+    assert before - timedelta(seconds=1) <= session.meta.captured_at <= after + timedelta(seconds=1)
 
 
 def test_feed_non_frame_aligned_chunk_trims_without_error(manager):

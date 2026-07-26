@@ -12,11 +12,13 @@ import re
 import uuid
 import wave
 from collections.abc import Callable, Iterator
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 import numpy as np
 from fastapi import APIRouter, HTTPException, Request
+from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel
 
 from musicna_api.live import broadcaster
@@ -127,6 +129,8 @@ class RemoteCaptureManager:
         self._sessions: dict[str, RemoteCaptureSession] = {}
 
     def start(self, meta: TrackMeta, sample_rate: int, channels: int, chunk_s: float = 5.0) -> str:
+        if meta.captured_at is None:
+            meta = meta.model_copy(update={"captured_at": datetime.now()})
         session_id = uuid.uuid4().hex
         index = _next_index(self.out_dir)
         parts = [f"{index:03d}", *filter(None, [meta.artist, meta.title])]
@@ -175,7 +179,7 @@ async def start_session(body: RemoteSessionStart) -> RemoteSessionStartResponse:
 async def upload_chunk(session_id: str, request: Request) -> dict[str, int]:
     raw = await request.body()
     try:
-        events = manager.feed(session_id, raw)
+        events = await run_in_threadpool(manager.feed, session_id, raw)
     except KeyError:
         raise HTTPException(status_code=404, detail="unknown session_id") from None
     for ev in events:
