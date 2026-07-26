@@ -417,7 +417,7 @@ git commit -m "feat: RemoteCaptureManager — 원격 PCM 청크를 WAV+실시간
 - Consumes: `RemoteCaptureManager`(Task 2), `broadcaster`(공유 `LiveBroadcaster` 인스턴스, `live.py`로 이동)
 - Produces: `POST /remote/audio/sessions` (body: `{meta: TrackMeta, sample_rate: int, channels: int=1}` → `{session_id: str}`), `POST /remote/audio/sessions/{id}/chunk` (raw bytes body → `{accepted: int}`, 미지의 id는 404), `POST /remote/audio/sessions/{id}/end` (→ `{wav_path: str}`, 미지의 id는 404). 모듈 전역 `manager: RemoteCaptureManager` — 테스트는 `monkeypatch.setattr(remote_capture, "manager", ...)`로 교체한다(`system.orchestrator`와 동일한 기존 패턴).
 
-- [ ] **Step 1: 실패하는 라우트 테스트를 작성**
+- [x] **Step 1: 실패하는 라우트 테스트를 작성**
 
 `api/tests/test_remote_capture_routes.py` 생성:
 
@@ -503,12 +503,12 @@ def test_session_end_broadcasts_track_ended(client):
         assert event == {"type": "track_ended"}
 ```
 
-- [ ] **Step 2: 테스트 실행 → 실패 확인**
+- [x] **Step 2: 테스트 실행 → 실패 확인**
 
 Run: `uv run pytest api/tests/test_remote_capture_routes.py -v`
 Expected: FAIL — `AttributeError: module 'musicna_api.remote_capture' has no attribute 'manager'` (라우터·매니저 싱글턴이 아직 없음)
 
-- [ ] **Step 3: `live.py`에 broadcaster 싱글턴 추가**
+- [x] **Step 3: `live.py`에 broadcaster 싱글턴 추가**
 
 `api/src/musicna_api/live.py` 파일 끝에 추가:
 
@@ -516,7 +516,7 @@ Expected: FAIL — `AttributeError: module 'musicna_api.remote_capture' has no a
 broadcaster = LiveBroadcaster()
 ```
 
-- [ ] **Step 4: `main.py`에서 broadcaster를 공유 인스턴스로 교체**
+- [x] **Step 4: `main.py`에서 broadcaster를 공유 인스턴스로 교체**
 
 `api/src/musicna_api/main.py`의 아래 부분을 찾아:
 
@@ -552,7 +552,7 @@ app.include_router(remote_capture.router)
 
 (`broadcaster.publish`/`.subscribe`/`.unsubscribe`를 쓰는 `live_ingest`/`ws_live` 함수는 무수정 — 같은 이름이 이제 `live.py`에서 임포트된 공유 인스턴스를 가리킬 뿐이다.)
 
-- [ ] **Step 5: `remote_capture.py`에 라우터·매니저 싱글턴 추가**
+- [x] **Step 5: `remote_capture.py`에 라우터·매니저 싱글턴 추가**
 
 `api/src/musicna_api/remote_capture.py` 상단 import에 추가:
 
@@ -619,12 +619,12 @@ def end_session(session_id: str) -> dict[str, str]:
     return {"wav_path": str(wav_path)}
 ```
 
-- [ ] **Step 6: 전체 테스트 실행 → 통과 확인**
+- [x] **Step 6: 전체 테스트 실행 → 통과 확인**
 
 Run: `uv run pytest api/tests -v`
 Expected: PASS — 기존 전부 + 신규 5개(`test_remote_capture_routes.py`)
 
-- [ ] **Step 7: 커밋**
+- [x] **Step 7: 커밋** (실제 커밋: `89ad83f`. 리뷰에서 start_session/end_session의 asyncio.Queue 스레드 안전성 문제 발견 → fix round 1로 async def 전환, 커밋 `9950013`)
 
 ```bash
 git add api/src/musicna_api/live.py api/src/musicna_api/main.py api/src/musicna_api/remote_capture.py api/tests/test_remote_capture_routes.py

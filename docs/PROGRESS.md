@@ -108,7 +108,7 @@
 > |---|---|---|---|
 > | 1 | `process_chunk` 추출(live_cli.py 리팩터) | ✅ 완료, 리뷰 통과 | `6e49cd0` |
 > | 2 | `RemoteCaptureManager`/`Session` 구현 | ✅ 완료, fix round 1(비정렬 PCM 청크 가드 추가)後 리뷰 통과 | `6afbf2d`, `22a4a5c` |
-> | 3 | `/remote/audio/*` REST 엔드포인트 | 대기 | — |
+> | 3 | `/remote/audio/*` REST 엔드포인트 | ✅ 완료, fix round 1(start_session/end_session async 전환)後 리뷰 통과 | `89ad83f`, `9950013` |
 > | 4 | TUI 자체 부팅 제거 | 대기 | — |
 > | 5 | launchd LaunchAgent | 대기 | — |
 > | 6 | Tailscale 설정 | 대기 | — |
