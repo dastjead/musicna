@@ -819,7 +819,7 @@ git commit -m "refactor: TUI 자체 api 부트스트랩 제거 — MUSICNA_API_U
 
 **Interfaces:** 없음(코드 아님, macOS 실기기 전용 설정 파일).
 
-- [ ] **Step 1: plist 템플릿 작성**
+- [x] **Step 1: plist 템플릿 작성**
 
 `deploy/macos/com.musicna.api.plist` 생성:
 
@@ -850,7 +850,7 @@ git commit -m "refactor: TUI 자체 api 부트스트랩 제거 — MUSICNA_API_U
 
 (`--host 0.0.0.0`이 필요하다 — Tailscale·LAN 인터페이스에서 접근하려면 기본값 127.0.0.1로는 안 된다. 공인 인터넷 노출은 이 바인딩이 아니라 홈 라우터의 포트포워딩 미설정으로 막는다 — 라우터에 8000번 포트를 외부로 포워딩하지 않았는지 별도 확인 필요.)
 
-- [ ] **Step 2: 설치 스크립트 작성**
+- [x] **Step 2: 설치 스크립트 작성**
 
 `deploy/macos/install.sh` 생성:
 
@@ -874,13 +874,13 @@ echo "확인: launchctl list | grep com.musicna.api"
 echo "로그: tail -f $HOME/Library/Logs/musicna-api.log"
 ```
 
-- [ ] **Step 3: 실행 권한 부여**
+- [x] **Step 3: 실행 권한 부여**
 
 ```bash
 chmod +x deploy/macos/install.sh
 ```
 
-- [ ] **Step 4: (macOS 실기기) 설치 및 검증**
+- [ ] **Step 4: (macOS 실기기) 설치 및 검증** — 아직 진행 안 함, 사용자와 직접 실행 예정 (Step 1~3·5는 서브에이전트가 완료, 커밋 `aaeb595`)
 
 Run: `./deploy/macos/install.sh`
 Expected: "설치 완료" 출력
@@ -894,7 +894,7 @@ Expected: `{"status":"ok"}`
 Run: 터미널을 닫고 재접속 후 다시 `curl http://127.0.0.1:8000/health`
 Expected: 여전히 `{"status":"ok"}` — 터미널 세션과 무관하게 살아있음을 확인
 
-- [ ] **Step 5: 커밋**
+- [x] **Step 5: 커밋** (실제 커밋: `aaeb595`, 리뷰 통과·수정 없음)
 
 ```bash
 git add deploy/macos/com.musicna.api.plist deploy/macos/install.sh
