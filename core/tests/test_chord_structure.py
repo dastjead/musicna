@@ -134,3 +134,56 @@ def test_find_chord_loops_ignores_repeats_shorter_than_min_length():
 
 def test_find_chord_loops_empty_sequence_returns_empty():
     assert find_chord_loops([], min_length=4) == []
+
+
+def test_find_chord_loops_deduplicates_phase_shifted_repeats_of_same_pattern():
+    """3회 이상 반복되는 패턴이 위상만 다른 여러 개의 중복 루프로 보고되면 안 된다."""
+    pattern = ["I", "V", "vi", "IV"]
+    sequence = [
+        RomanEvent(roman=r, start_s=float(i), end_s=float(i + 1))
+        for i, r in enumerate(pattern * 3)
+    ]
+    loops = find_chord_loops(sequence, min_length=4)
+    assert len(loops) == 1
+    assert loops[0].pattern == ["I", "V", "vi", "IV"]
+    assert loops[0].occurrences == [(0.0, 4.0), (4.0, 8.0), (8.0, 12.0)]
+
+
+def test_summarize_sections_two_empty_sections_do_not_link_to_each_other():
+    sequence = [RomanEvent(roman="I", start_s=10.0, end_s=11.0)]  # 두 구간과 안 겹침
+    sections = [
+        Section(label="silence1", start_s=0.0, end_s=1.0),
+        Section(label="silence2", start_s=2.0, end_s=3.0),
+    ]
+    summaries = summarize_sections(sequence, sections)
+    assert summaries[0].roman_progression == [] and summaries[0].repeats_of is None
+    assert summaries[1].roman_progression == [] and summaries[1].repeats_of is None
+
+
+def test_find_chord_loops_does_not_report_shorter_subsumed_pattern():
+    """6코드 패턴이 2회 반복되면, 그 안에 포함된 4코드 하위 패턴이 별도로 보고되면 안 된다."""
+    pattern = ["I", "V", "vi", "IV", "ii", "V"]
+    sequence = [
+        RomanEvent(roman=r, start_s=float(i), end_s=float(i + 1))
+        for i, r in enumerate(pattern * 2)
+    ]
+    loops = find_chord_loops(sequence, min_length=4)
+    assert len(loops) == 1
+    assert loops[0].pattern == pattern
+    assert loops[0].occurrences == [(0.0, 6.0), (6.0, 12.0)]
+
+
+def test_find_chord_loops_greedily_selects_non_overlapping_occurrences():
+    """등장끼리 겹치지 않는지 검증하는 일반 불변식 테스트."""
+    # 실제 반복 패턴이 있는 시퀀스에서 occurrence가 절대 겹치지 않음을 확인
+    pattern = ["I", "V", "vi", "IV", "ii", "V"]
+    sequence = [
+        RomanEvent(roman=r, start_s=float(i), end_s=float(i + 1))
+        for i, r in enumerate(pattern * 2)
+    ]
+    loops = find_chord_loops(sequence, min_length=4)
+    for loop in loops:
+        starts = sorted(s for s, _ in loop.occurrences)
+        ends = sorted(e for _, e in loop.occurrences)
+        # 각 occurrence의 끝이 다음 occurrence의 시작보다 작거나 같아야 함
+        assert all(e <= s2 for e, s2 in zip(ends, starts[1:]))

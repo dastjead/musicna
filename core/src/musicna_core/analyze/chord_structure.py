@@ -125,6 +125,8 @@ def find_chord_loops(roman_sequence: list[RomanEvent], min_length: int = 4) -> l
             occurrence_starts: list[int] = []
             last_end = -1
             for start in starts:
+                if any(claimed[start : start + length]):
+                    continue
                 if start >= last_end:
                     occurrence_starts.append(start)
                     last_end = start + length
