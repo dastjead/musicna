@@ -7,6 +7,7 @@
 2026-07-26-central-deployment-ios-player-design.md 참조).
 """
 
+import os
 import re
 import uuid
 import wave
@@ -15,11 +16,14 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
+from fastapi import APIRouter, HTTPException, Request
+from pydantic import BaseModel
 
+from musicna_api.live import broadcaster
 from musicna_api.live_cli import process_chunk
 from musicna_api.session.pcm import float32_to_int16
 from musicna_core.analyze.live_chords import LiveChordTracker
-from musicna_core.models import LiveEvent, TrackMeta
+from musicna_core.models import LiveEvent, LiveTrackEnded, LiveTrackStarted, TrackMeta, live_event_adapter
 
 _UNSAFE = re.compile(r'[/\\:?"<>|*\x00-\x1f]')
 _INDEX_RE = re.compile(r"^(\d{3}) - ")
@@ -139,3 +143,51 @@ class RemoteCaptureManager:
         session = self._sessions.pop(session_id)
         session.finalize()
         return session.wav_path
+
+
+manager = RemoteCaptureManager(out_dir=Path(os.environ.get("MUSICNA_AUDIO_DIR", "data/audio")))
+
+router = APIRouter(prefix="/remote/audio", tags=["remote-capture"])
+
+
+def _publish(event: LiveEvent) -> None:
+    broadcaster.publish(live_event_adapter.dump_json(event).decode())
+
+
+class RemoteSessionStart(BaseModel):
+    meta: TrackMeta
+    sample_rate: int
+    channels: int = 1
+
+
+class RemoteSessionStartResponse(BaseModel):
+    session_id: str
+
+
+@router.post("/sessions", response_model=RemoteSessionStartResponse)
+def start_session(body: RemoteSessionStart) -> RemoteSessionStartResponse:
+    session_id = manager.start(body.meta, body.sample_rate, body.channels)
+    _publish(LiveTrackStarted(track=body.meta))
+    return RemoteSessionStartResponse(session_id=session_id)
+
+
+@router.post("/sessions/{session_id}/chunk", status_code=202)
+async def upload_chunk(session_id: str, request: Request) -> dict[str, int]:
+    raw = await request.body()
+    try:
+        events = manager.feed(session_id, raw)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="unknown session_id") from None
+    for ev in events:
+        _publish(ev)
+    return {"accepted": len(events)}
+
+
+@router.post("/sessions/{session_id}/end")
+def end_session(session_id: str) -> dict[str, str]:
+    try:
+        wav_path = manager.end(session_id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="unknown session_id") from None
+    _publish(LiveTrackEnded())
+    return {"wav_path": str(wav_path)}

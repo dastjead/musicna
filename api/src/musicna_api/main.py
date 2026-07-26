@@ -18,15 +18,15 @@ from fastapi import Depends, FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 
-from musicna_api import player, system
-from musicna_api.live import LiveBroadcaster
+from musicna_api import player, remote_capture, system
+from musicna_api.live import broadcaster
 from musicna_core.models import AnalysisResult, LiveEvent, live_event_adapter
 from musicna_core.store import create_session_factory, list_latest_analyses
 
 app = FastAPI(title="musicna", version="0.1.0")
 app.include_router(player.router)
 app.include_router(system.router)
-broadcaster = LiveBroadcaster()
+app.include_router(remote_capture.router)
 
 
 @lru_cache(maxsize=1)

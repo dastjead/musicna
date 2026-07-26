@@ -35,3 +35,6 @@ class LiveBroadcaster:
                 q.put_nowait(payload)
             except asyncio.QueueFull:
                 logger.warning("느린 실시간 구독자 — 이벤트 드롭")
+
+
+broadcaster = LiveBroadcaster()
