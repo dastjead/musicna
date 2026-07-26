@@ -99,7 +99,7 @@
 - [ ] 검색·플레이리스트(`/player/search`, `/player/playlists`)
 - [ ] 실시간 분석 뷰(코드·피아노 롤)를 TUI에 추가 (`/ws/live` 재사용)
 - [ ] 라이브러리 브라우저를 TUI에 추가 (`/tracks` 재사용)
-- [ ] TUI의 "자체 로컬 api 부트스트랩"(Phase 7) 제거 → 상시 중앙 api(Phase 8.5)에 접속만 하는 클라이언트로 전환
+- [x] TUI의 "자체 로컬 api 부트스트랩"(Phase 7) 제거 → 상시 중앙 api(Phase 8.5)에 접속만 하는 클라이언트로 전환 (2026-07-26, 커밋 `9d57f78`)
 
 ### Phase 8.5 — 중앙 배포 인프라 (신규, 2026-07-26 설계)
 > 설계: [2026-07-26-central-deployment-ios-player-design.md](superpowers/specs/2026-07-26-central-deployment-ios-player-design.md). 구현 계획: [2026-07-26-phase-8-5-central-deployment.md](superpowers/plans/2026-07-26-phase-8-5-central-deployment.md)(7개 Task, subagent-driven-development로 실행 중).
@@ -109,7 +109,7 @@
 > | 1 | `process_chunk` 추출(live_cli.py 리팩터) | ✅ 완료, 리뷰 통과 | `6e49cd0` |
 > | 2 | `RemoteCaptureManager`/`Session` 구현 | ✅ 완료, fix round 1(비정렬 PCM 청크 가드 추가)後 리뷰 통과 | `6afbf2d`, `22a4a5c` |
 > | 3 | `/remote/audio/*` REST 엔드포인트 | ✅ 완료, fix round 1(start_session/end_session async 전환)後 리뷰 통과 | `89ad83f`, `9950013` |
-> | 4 | TUI 자체 부팅 제거 | 대기 | — |
+> | 4 | TUI 자체 부팅 제거 | ✅ 완료, 리뷰 통과(수정 없음) | `9d57f78` |
 > | 5 | launchd LaunchAgent | 대기 | — |
 > | 6 | Tailscale 설정 | 대기 | — |
 > | 7 | 전체 마일스톤 검증 | 대기 | — |

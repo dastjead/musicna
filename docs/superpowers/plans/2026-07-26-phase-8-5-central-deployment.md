@@ -645,7 +645,7 @@ TUI가 더 이상 로컬 uvicorn을 스스로 띄우지 않고, 웹과 동일하
 **Interfaces:**
 - Produces: `ApiClient.base_url -> str` (프로퍼티). `MusicnaApp()`은 환경변수 `MUSICNA_API_URL`(기본값 `http://127.0.0.1:8000`)로 `ApiClient`를 구성한다. `ensure_api_running` 함수는 삭제된다.
 
-- [ ] **Step 1: `ApiClient`에 `base_url` 프로퍼티를 요구하는 실패 테스트 작성**
+- [x] **Step 1: `ApiClient`에 `base_url` 프로퍼티를 요구하는 실패 테스트 작성**
 
 `tui/tests/test_client.py`에 아래 테스트를 추가한다(파일 끝):
 
@@ -655,12 +655,12 @@ def test_base_url_property_reflects_constructor_arg():
     assert client.base_url == "http://mac-mini.tailnet.ts.net:8000"
 ```
 
-- [ ] **Step 2: 테스트 실행 → 실패 확인**
+- [x] **Step 2: 테스트 실행 → 실패 확인**
 
 Run: `uv run pytest tui/tests/test_client.py -k base_url -v`
 Expected: FAIL — `AttributeError: 'ApiClient' object has no attribute 'base_url'`
 
-- [ ] **Step 3: `ApiClient`에 프로퍼티 추가**
+- [x] **Step 3: `ApiClient`에 프로퍼티 추가**
 
 `tui/src/musicna_tui/client.py`의 `close` 메서드 앞에 추가:
 
@@ -670,12 +670,12 @@ Expected: FAIL — `AttributeError: 'ApiClient' object has no attribute 'base_ur
         return str(self._http.base_url)
 ```
 
-- [ ] **Step 4: 테스트 실행 → 통과 확인**
+- [x] **Step 4: 테스트 실행 → 통과 확인**
 
 Run: `uv run pytest tui/tests/test_client.py -v`
 Expected: PASS
 
-- [ ] **Step 5: `app.py`에서 부트스트랩 제거, env var 적용을 검증하는 실패 테스트 작성**
+- [x] **Step 5: `app.py`에서 부트스트랩 제거, env var 적용을 검증하는 실패 테스트 작성**
 
 `tui/tests/test_app.py`를 아래 내용으로 전체 교체한다(기존 `ensure_api_running` 관련 3개 테스트·`_make_advancing_clock`·`subprocess`/`time` import를 제거하고, env var 테스트를 추가):
 
@@ -730,12 +730,12 @@ async def test_app_exits_with_message_when_system_start_fails(monkeypatch):
     assert "연결 실패" in exit_calls[0]["message"]
 ```
 
-- [ ] **Step 6: 테스트 실행 → 실패 확인**
+- [x] **Step 6: 테스트 실행 → 실패 확인**
 
 Run: `uv run pytest tui/tests/test_app.py -v`
 Expected: FAIL — `ImportError: cannot import name 'DEFAULT_API_URL'`
 
-- [ ] **Step 7: `app.py`를 부트스트랩 없는 버전으로 교체**
+- [x] **Step 7: `app.py`를 부트스트랩 없는 버전으로 교체**
 
 `tui/src/musicna_tui/app.py` 전체를 아래로 교체:
 
@@ -797,12 +797,12 @@ if __name__ == "__main__":
     run()
 ```
 
-- [ ] **Step 8: 전체 TUI 테스트 실행 → 통과 확인**
+- [x] **Step 8: 전체 TUI 테스트 실행 → 통과 확인**
 
 Run: `uv run pytest tui/tests -v`
 Expected: PASS — 전부
 
-- [ ] **Step 9: 커밋**
+- [x] **Step 9: 커밋** (실제 커밋: `9d57f78`. 리뷰 통과, 수정 없음)
 
 ```bash
 git add tui/src/musicna_tui/client.py tui/src/musicna_tui/app.py tui/tests/test_app.py tui/tests/test_client.py
