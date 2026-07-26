@@ -6,11 +6,11 @@
 
 ## 현재 상태
 
-- **현재 Phase**: **Phase 0~6 전체 마일스톤 실기기 검증 통과**. 잔여는 선택 항목(무드/키 통계 화면, Alembic)과 iOS 뷰어
+- **현재 Phase**: **Phase 0~7 전체 마일스톤 실기기 검증 통과**. Phase 7은 spotify_player 재생 엔진 통합(핵심 재생 제어)까지 완료, 검색·플레이리스트·TUI 실시간뷰/라이브러리는 Phase 8로 이월
 - **작업 브랜치**: `claude/music-analysis-app-planning-rsfa6x`
 - **분담**: `capture-macos/`·`api/session/`은 macOS 로컬 담당, 원격은 `core/`·문서 담당. 작업 전 반드시 pull
-- **다음 할 일 (macOS)**: ① 정상 레벨 곡 추가 캡처·축적(현재 DB 2트랙, 1트랙만 완전 분석) ② (선택) 라이브러리 통계 화면용 데이터 축적
-- **다음 할 일 (원격)**: iOS 뷰어 설계 착수(SwiftUI + OpenAPI 클라이언트), 또는 Alembic 마이그레이션 도입
+- **다음 할 일 (macOS)**: ① `uv run musicna-tui`를 실제 터미널에서 대화형으로 확인(이번 검증은 `run_test()` 기반 무헤드 통합 검증) ② 정상 레벨 곡 추가 캡처·축적
+- **다음 할 일 (원격)**: Phase 8(TUI 기능 동등화 — 검색·플레이리스트·실시간뷰·라이브러리 브라우저) 착수, 또는 Alembic 마이그레이션 도입
 
 ## Phase 체크리스트
 
@@ -76,8 +76,24 @@
 - [x] 검증(원격): 테스트 12건 + Playwright E2E(시뮬레이션 이벤트 주입 → C/F/G7 표시·피아노 롤 렌더 확인)
 - [x] **(macOS)** 실기기 마일스톤 검증 통과: `musicna-capture | uv run musicna-live` + Spotify 실재생 → live.html에 실시간 코드(예: Gm7/B-)·히스토리·피아노 롤(109노트) 렌더 확인. 청크 17개 평균 1.79s(5초 청크 대비 2.8배 여유), small 모델 실시간성 확보 — 상세는 아래 검증 기록
 
-### 이후 — iOS 뷰어 앱
-- [ ] SwiftUI + OpenAPI 생성 클라이언트
+### Phase 7 — 재생 엔진·오케스트레이션
+- [x] `api/player.py`: `spotify_player`(Homebrew/cargo, librespot 기반) CLI 파서·명령 래퍼(`play/pause/next/previous/volume/connect/list_devices/get_status`) + `SpotifyPlayerDaemon`(헤드리스 데몬 생명주기)
+- [x] `api/session/metadata.py`: "spotify" 소스 메타데이터를 AppleScript에서 spotify_player 폴링으로 교체(Apple Music 소스는 무수정)
+- [x] `api/system.py`: `SystemOrchestrator`(데몬+세션 캡처 프로세스 관리, 세션 정지는 SIGINT로 WAV 마무리 저장 보장) + `/system/start|stop|status`
+- [x] `/player/*`(play/pause/next/previous/volume/devices/connect/status) REST 엔드포인트, `main.py` 등록
+- [x] `tui/` 신규 패키지(Textual): `ApiClient`, `PlayerPanel`(space/n/p 키 제어), `SessionStatus`, `MusicnaApp`(로컬 api 부트스트랩), `musicna-tui` 콘솔 스크립트
+- [x] 설계·계획 문서: [docs/superpowers/specs/2026-07-26-tui-player-orchestration-design.md](superpowers/specs/2026-07-26-tui-player-orchestration-design.md), [docs/superpowers/plans/2026-07-26-tui-player-orchestration.md](superpowers/plans/2026-07-26-tui-player-orchestration.md)
+- [x] **(macOS)** 마일스톤 검증 통과: TUI/API에서 재생·일시정지·다음곡·볼륨 조작 시 실제 Spotify 재생이 반응하고, 그 재생이 기존 캡처·트랙 분할에 실시간으로 반영됨(다음곡 전환마다 정확히 트랙 분리 저장 확인) — 상세는 아래 검증 기록
+- [ ] 검색·플레이리스트는 Phase 8로 이월
+
+### Phase 8 — TUI 기능 동등화
+- [ ] 검색·플레이리스트(`/player/search`, `/player/playlists`)
+- [ ] 실시간 분석 뷰(코드·피아노 롤)를 TUI에 추가 (`/ws/live` 재사용)
+- [ ] 라이브러리 브라우저를 TUI에 추가 (`/tracks` 재사용)
+
+### 이후 — Phase 9(macOS 앱)·Phase 10(iOS 뷰어 앱)
+- [ ] Phase 9: `api/`만 호출하는 macOS 네이티브 앱
+- [ ] Phase 10: SwiftUI + OpenAPI 생성 클라이언트, iOS 뷰어 겸 원격 제어
 
 ## 작업 로그
 
@@ -100,6 +116,9 @@
 | 2026-07-25 | 원격: Phase 6 구현 — LiveEvent 계약, LiveChordTracker, WS 브로드캐스트(/live/ingest→/ws/live), `musicna-live` CLI, 웹 라이브 뷰(코드+피아노 롤) | 63 passed, 1 skipped. Playwright E2E(이벤트 시뮬레이션)로 렌더 확인. **발견**: 기본 uvicorn에 WS 백엔드 없음 → websockets 의존성 추가. muscriptor 실전사 스트림은 macOS 검증 대기 |
 | 2026-07-25 | 원격: 문서 최신화 — README 전면 갱신(macOS 사용법 ①수집→②분석→③웹UI→④실시간, 개발 안내), PLAN에 현황 배너 추가 | Phase 0~6 구현 완료 시점의 문서 정리. 남은 로드맵: Phase 5·6 실기기 확인, iOS 뷰어 |
 | 2026-07-26 | **Phase 5·6 실기기 마일스톤 검증 통과**(macOS): ① `musicna-analyze --force` 재분석으로 chroma 교차 검증 확인(001에 MERGED 코드 12개 발생) ② 실캡처 DB로 웹 라이브러리 브라우저 렌더 확인(Playwright) ③ Spotify 실재생 캡처→`musicna-live`→live.html 실시간 코드·피아노 롤 렌더 확인 | Phase 0~6 전체 마일스톤 실기기 검증 완료. 청크 처리 평균 1.79s(최대 7.35s, 동시 실행 중이던 Playwright 스크린샷 스크립트의 CPU 경합으로 추정) — 5초 예산 내 여유 확보 |
+| 2026-07-26 | 브레인스토밍·설계·계획: TUI(`tui/`, Textual)+재생 엔진(`spotify_player` 임베딩) — Phase 7·8 스펙과 14-Task 구현 계획 작성. spotify_player 0.24.1 실바이너리로 CLI 문법·JSON 스키마 실측 확인 후 계획에 반영 | PLAN.md에 Phase 7~10 로드맵 추가(모든 클라이언트가 api/만 호출하는 동일 패턴). Homebrew 기본 빌드엔 daemon feature 없음(cargo 재빌드 필요)을 사전에 확인해 계획에 반영 |
+| 2026-07-26 | **Phase 7 구현**(subagent-driven development, Task 1~11): `api/player.py`(spotify_player CLI 래퍼·SpotifyPlayerDaemon)·`api/system.py`(SystemOrchestrator)·`/player,/system` REST·`api/session/metadata.py` spotify 소스 교체·`tui/`(ApiClient·PlayerPanel·SessionStatus·MusicnaApp) 신규 패키지 | Task별 구현자+리뷰어 서브에이전트 2단계 검토, 전부 승인(Critical/Important 0건, Minor는 원장에 기록). 전체 워크스페이스 141 passed |
+| 2026-07-26 | **Phase 7 마일스톤 실기기 검증 통과**(macOS): rust 1.86→1.97 업그레이드 후 spotify_player를 daemon feature로 cargo 재빌드(Homebrew 버전은 `media-control` 기본 feature가 daemon 모드와 macOS에서 상호 배타적 — 실기기에서 최초 발견). `/system/start`·`/player/play|pause|volume|next` 전부 실제 Spotify 재생에 반응, 재생이 캡처(WAV 실시간 증가)·트랙 분할(다음곡 전환마다 정확히 분리 저장)에 그대로 반영됨 확인. `/system/stop`이 SIGINT로 WAV 정상 마무리. `musicna-tui`를 `run_test()` 기반 무헤드 통합 검증으로 확인(위젯 실데이터 표시, space/n 키 → 실제 재생 제어) | **실기기 발견 버그**: `SpotifyPlayerDaemon`이 `subprocess.Popen` 핸들로 생명주기를 추적했으나 spotify_player daemon은 daemonize crate로 더블포크 데몬화 — 원래 핸들이 데몬화 직후 종료돼 `is_running()` 상시 오탐, `stop()`이 실제 데몬을 못 죽이고 좀비로 방치. `pgrep -f`/`pkill -f` 기반으로 교체(서브에이전트 fix+리뷰 통과, 84 passed) 후 재검증 완료 |
 
 ## 실기기 검증 상세 기록 — 2026-07-25 (macOS)
 
@@ -180,10 +199,37 @@ laion-clap도 torchvision을 미선언 런타임 의존 → mood extra에 추가
 
 **주의**: `LiveBroadcaster`는 in-memory pub/sub이라 새 구독자(페이지를 새로고침 등)는 과거 이벤트를 못 받는다 — 페이지를 연 시점 이후의 이벤트만 보인다(설계 의도, 버그 아님). 첫 로드 시 "노트 0"으로 보여도 정상이며, 곡이 계속 재생되면 채워진다
 
+## Phase 7 실기기 검증 상세 기록 — 2026-07-26 (macOS)
+
+### spotify_player 설치 절차 (신규 머신 재현용)
+
+Homebrew 기본 배포판(`brew install spotify_player`)은 `daemon` cargo feature 없이 빌드되어 `-d`/`--daemon` 플래그가 없다. 헤드리스 구동을 위해 cargo로 재빌드해야 한다:
+
+1. rust 버전 확인 — 이 머신은 Homebrew rust 1.86.0이었는데 여러 의존성(ratatui 0.30 등)이 1.87~1.90을 요구해 빌드 실패. `brew upgrade rust`로 1.97.1까지 올림
+2. **`media-control` feature와 `daemon` 모드는 macOS에서 상호 배타적** — `cargo install spotify_player --locked --features daemon,image,notify`(default features 유지한 채)로 빌드하면 `-d` 실행 시 `"Running the application as a daemon on windows/macos with 'media-control' feature enabled is not supported!"`로 즉시 실패(exit 1). `default = ["rodio-backend", "media-control"]`이 원인이므로 **`--no-default-features`가 필수**: `cargo install spotify_player --locked --no-default-features --features daemon,image,notify,rodio-backend`
+3. `~/.cargo/bin`이 PATH에 없으면(이 머신은 Homebrew rust만 쓰고 있어 rustup의 PATH 설정이 없었음) `.zshrc`에 `export PATH="$HOME/.cargo/bin:$PATH"` 추가. Homebrew판(daemon 없음)과 공존하면 `which spotify_player`가 어느 쪽을 잡을지 PATH 순서에 의존해 혼란스러우므로 **Homebrew판은 제거**(`brew uninstall spotify_player`) 권장
+4. 인증(`spotify_player authenticate`)은 이 머신에서 이미 완료돼 있었고, 바이너리를 cargo판으로 교체해도 `~/.cache/spotify-player`의 토큰 캐시가 그대로 유효함을 확인(재인증 불필요)
+
+### 발견 버그: `SpotifyPlayerDaemon`이 daemonize의 더블포크를 추적 못함 (`api/player.py`, 커밋 9cb4584)
+
+- 증상: `POST /system/start`가 200을 반환하고 재생 제어·캡처는 전부 정상 작동하는데도 `GET /system/status`가 항상 `spotify_player_daemon: false`. `POST /system/stop` 후에도 `ps aux`에 spotify_player 데몬이 좀비로 계속 남음
+- 원인: `spotify_player -d`는 `daemonize` crate로 유닉스 표준 더블포크를 한다 — `subprocess.Popen`으로 띄운 원래 자식 프로세스는 데몬화 완료 직후 스스로 종료하고, 실제 서비스는 부모와 연결이 끊긴 별도 PID(그랜드차일드)로 남는다. `is_running()`이 `self._proc.poll()`(원래 핸들)로 판정하고 있어서 실질적으로 항상 신뢰 불가했고, `stop()`도 이미 죽은 핸들에 신호를 보내는 no-op이 되어 실제 데몬을 못 건드림
+- 재현: `spotify_player -d -o enable_media_control=false &`; `ps aux | grep spotify_player` → 두 개의 PID(원래 프로세스+데몬화된 서비스)가 잠깐 공존하다 원래 쪽만 사라짐
+- 수정: `is_running()`을 `pgrep -f "spotify_player -d"`, `stop()`을 `pkill -f "spotify_player -d"`(타임아웃 시 `pkill -9`로 에스컬레이션) 기반으로 교체 — 프로세스 핸들이 아니라 실제 커맨드라인 매칭으로 판정. 실기기에서 `pkill -f`가 데몬화된 그랜드차일드까지 정확히 종료시킴을 직접 확인 후 반영
+- 교훈: 서브프로세스 오케스트레이션에서 "우리가 Popen으로 띄운 핸들"과 "실제로 떠 있는 서비스"는 대상 프로그램이 자체적으로 데몬화(더블포크)하면 서로 다른 프로세스가 된다 — 합성 테스트(fake Popen)는 이 차이를 드러내지 못하고 실기기에서만 발견됨
+
+### 마일스톤 검증 결과
+
+- `POST /system/start` → `spotify_player_daemon: true`(수정 후), `session_capturing: true`. 실제 데몬 프로세스 `ps aux`로 확인
+- `POST /player/play`/`pause`/`volume?percent=40`/`next` — 전부 실제 Spotify 재생에 반응(재생/일시정지 토글, 볼륨 변경, 곡 전환을 `/player/status` 재조회로 확인)
+- 재생 중 캡처 WAV가 실시간으로 증가(3.2MB→6.4MB→7.9MB, 수 초 간격 확인), `next` 명령으로 곡이 넘어갈 때마다 정확히 새 트랙으로 분리 저장(`002 - Yoko Kanno - My Favorite Things`, `003 - Yoko Kanno - Beni` 각각 WAV+JSON 사이드카)
+- `POST /system/stop` → 세션 프로세스에 SIGINT 전달, WAV가 정상 마무리 저장(파일 크기 고정, JSON 완성)되고 프로세스 완전 종료(좀비 없음), 데몬도 pkill로 완전 정리됨
+- `musicna-tui`는 이 세션에 대화형 tty가 없어 Textual `App.run_test()`로 실제 api 서버(+실제 spotify_player 데몬)에 연결하는 무헤드 통합 스크립트로 검증: `PlayerPanel`이 실제 곡명·아티스트·볼륨을 표시, `SessionStatus`가 "데몬: 켜짐 | 캡처: 녹음 중"을 정확히 표시, `space`/`n` 키 입력이 실제로 재생 상태 토글·다음곡 전환을 일으킴(위젯 텍스트 갱신은 2~3초 폴링 주기만큼 지연되지만 백엔드 반응은 즉시 확인됨). 실제 터미널에서의 대화형 확인은 다음 세션 과제로 남김
+
 ## 협업 메모 (세션 재개/서브에이전트용)
 
 - 개발 환경이 Linux 원격 컨테이너일 수 있음 → **capture-macos와 muscriptor Metal 실행은 로컬 macOS에서만 검증 가능**. 그 외(core/api)는 어디서든 테스트 가능
 - 무거운 ML 의존성(muscriptor, allin1, CLAP)은 core의 **optional extra**로 분리해 스캐폴딩 단계에서는 설치하지 않는다
 - 커밋·푸시는 지정 브랜치(`claude/music-analysis-app-planning-rsfa6x`)로만
-- **macOS 실행 요구사항** (상세는 위 검증 기록 참조): ① 터미널에 화면·시스템 오디오 기록 권한(TCC) ② HF 로그인 + muscriptor small/large 라이선스 동의 ③ arm64는 torch>=2.3 (transcribe extra가 강제함) ④ analyze extra는 natten 소스 빌드 순서 준수(위 Phase 3·4 기록의 3단계) ⑤ 캡처 시 재생 볼륨 확보 — 준무음 캡처는 전사·비트 검출이 빈 결과가 됨
+- **macOS 실행 요구사항** (상세는 위 검증 기록 참조): ① 터미널에 화면·시스템 오디오 기록 권한(TCC) ② HF 로그인 + muscriptor small/large 라이선스 동의 ③ arm64는 torch>=2.3 (transcribe extra가 강제함) ④ analyze extra는 natten 소스 빌드 순서 준수(위 Phase 3·4 기록의 3단계) ⑤ 캡처 시 재생 볼륨 확보 — 준무음 캡처는 전사·비트 검출이 빈 결과가 됨 ⑥ Phase 7~: spotify_player를 cargo로 `--no-default-features --features daemon,image,notify,rodio-backend`로 재빌드(Homebrew판은 daemon 미지원) + `~/.cargo/bin` PATH 등록 + `spotify_player authenticate`(위 Phase 7 검증 기록 참조)
 - `data/`(audio/midi)는 git 미추적 — 검증 산출물은 이 머신 로컬에만 존재. 다른 머신에서 Phase 3 검증 시 캡처부터 다시 수행
