@@ -102,7 +102,17 @@
 - [ ] TUI의 "자체 로컬 api 부트스트랩"(Phase 7) 제거 → 상시 중앙 api(Phase 8.5)에 접속만 하는 클라이언트로 전환
 
 ### Phase 8.5 — 중앙 배포 인프라 (신규, 2026-07-26 설계)
-> 설계: [2026-07-26-central-deployment-ios-player-design.md](superpowers/specs/2026-07-26-central-deployment-ios-player-design.md). 구현 계획(writing-plans)은 아직 미작성 — 착수 시 이 스펙을 기반으로 작성
+> 설계: [2026-07-26-central-deployment-ios-player-design.md](superpowers/specs/2026-07-26-central-deployment-ios-player-design.md). 구현 계획: [2026-07-26-phase-8-5-central-deployment.md](superpowers/plans/2026-07-26-phase-8-5-central-deployment.md)(7개 Task, subagent-driven-development로 실행 중).
+> **구현 진행 상황** (세션 재개용 — 이 계획의 SDD 원장은 `.superpowers/sdd/2026-07-26-phase-8-5-central-deployment/progress.md`, git-ignored이므로 저장소 밖에서도 아래 표만으로 재개 가능해야 함):
+> | Task | 내용 | 상태 | 커밋 |
+> |---|---|---|---|
+> | 1 | `process_chunk` 추출(live_cli.py 리팩터) | ✅ 완료, 리뷰 통과 | `6e49cd0` |
+> | 2 | `RemoteCaptureManager`/`Session` 구현 | 대기 | — |
+> | 3 | `/remote/audio/*` REST 엔드포인트 | 대기 | — |
+> | 4 | TUI 자체 부팅 제거 | 대기 | — |
+> | 5 | launchd LaunchAgent | 대기 | — |
+> | 6 | Tailscale 설정 | 대기 | — |
+> | 7 | 전체 마일스톤 검증 | 대기 | — |
 - [ ] Tailscale 설치·설정(Mac mini + 클라이언트 기기), MagicDNS 호스트네임 확보
 - [ ] Mac mini 자동 로그인 설정 (재부팅 복구용)
 - [ ] `launchd` LaunchAgent plist 작성 — `uvicorn musicna_api.main:app` 상시 구동, KeepAlive로 크래시 재시작

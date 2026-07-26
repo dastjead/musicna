@@ -29,7 +29,7 @@ Task 2(원격 인제스트)가 로컬 CLI와 동일한 전사→코드추적→�
 **Interfaces:**
 - Produces: `process_chunk(tracker: LiveChordTracker, samples: np.ndarray, sample_rate: int, offset_s: float, transcribe_chunk: Callable[[np.ndarray, int], Iterator[Any]], chord_poll_s: float = 1.0) -> list[LiveEvent]` — Task 2가 이 함수를 `from musicna_api.live_cli import process_chunk`로 가져다 쓴다.
 
-- [ ] **Step 1: `process_chunk`를 호출하는 실패 테스트를 작성**
+- [x] **Step 1: `process_chunk`를 호출하는 실패 테스트를 작성**
 
 `api/tests/test_live_cli.py` 최상단 import에 `process_chunk`를 추가하고, 파일 끝에 아래 테스트를 추가한다:
 
@@ -66,12 +66,12 @@ def test_process_chunk_respects_sample_rate():
 
 `test_adapter_offsets_and_types` 바로 위에 있는 `import types`는 이미 파일 상단에 있으므로 추가 import 불필요. `LiveChord` import도 이미 상단에 있다.
 
-- [ ] **Step 2: 테스트 실행 → 실패 확인**
+- [x] **Step 2: 테스트 실행 → 실패 확인**
 
 Run: `uv run pytest api/tests/test_live_cli.py -k process_chunk -v`
 Expected: FAIL — `ImportError: cannot import name 'process_chunk'`
 
-- [ ] **Step 3: `run_live`에서 `process_chunk`를 추출하고 샘플레이트를 매개변수화**
+- [x] **Step 3: `run_live`에서 `process_chunk`를 추출하고 샘플레이트를 매개변수화**
 
 `api/src/musicna_api/live_cli.py`의 86~119번 줄(`run_live` 함수 전체)을 아래로 교체:
 
@@ -130,12 +130,12 @@ def run_live(
 
 또한 파일 상단 import에 `LiveChordTracker`를 추가해야 한다(현재 `run_live` 안에서만 쓰이던 것을 `process_chunk`가 참조하지는 않지만 — 실제로는 `tracker`는 `process_chunk`의 매개변수로 전달되므로 `LiveChordTracker` 자체는 `run_live` 안에서만 인스턴스화된다. `live_cli.py` 상단의 기존 `from musicna_core.analyze.live_chords import LiveChordTracker` import는 그대로 둔다 — 삭제하지 말 것).
 
-- [ ] **Step 4: 전체 테스트 실행 → 신규+기존 모두 통과 확인**
+- [x] **Step 4: 전체 테스트 실행 → 신규+기존 모두 통과 확인**
 
 Run: `uv run pytest api/tests/test_live_cli.py -v`
 Expected: PASS — 기존 5개 + 신규 2개 = 7개 전부 통과
 
-- [ ] **Step 5: 커밋**
+- [x] **Step 5: 커밋** (실제 커밋: `6e49cd0`)
 
 ```bash
 git add api/src/musicna_api/live_cli.py api/tests/test_live_cli.py
