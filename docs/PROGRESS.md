@@ -110,12 +110,12 @@
 > | 2 | `RemoteCaptureManager`/`Session` 구현 | ✅ 완료, fix round 1(비정렬 PCM 청크 가드 추가)後 리뷰 통과 | `6afbf2d`, `22a4a5c` |
 > | 3 | `/remote/audio/*` REST 엔드포인트 | ✅ 완료, fix round 1(start_session/end_session async 전환)後 리뷰 통과 | `89ad83f`, `9950013` |
 > | 4 | TUI 자체 부팅 제거 | ✅ 완료, 리뷰 통과(수정 없음) | `9d57f78` |
-> | 5 | launchd LaunchAgent | ⏳ 부분 완료 — plist·install.sh 작성·리뷰 통과, **실제 설치·검증은 사용자와 직접 진행 대기 중**. 운영 매뉴얼: [deploy/macos/README.md](../deploy/macos/README.md) | `aaeb595` |
+> | 5 | launchd LaunchAgent | ✅ 완료 — 사용자가 직접 설치·헬스체크·재부팅 복구까지 확인. 운영 매뉴얼: [deploy/macos/README.md](../deploy/macos/README.md) | `aaeb595` |
 > | 6 | Tailscale 설정 | 대기 | — |
 > | 7 | 전체 마일스톤 검증 | 대기 | — |
 - [ ] Tailscale 설치·설정(Mac mini + 클라이언트 기기), MagicDNS 호스트네임 확보
 - [ ] Mac mini 자동 로그인 설정 (재부팅 복구용)
-- [ ] `launchd` LaunchAgent plist 작성 — `uvicorn musicna_api.main:app` 상시 구동, KeepAlive로 크래시 재시작
+- [x] `launchd` LaunchAgent plist 작성 — `uvicorn musicna_api.main:app` 상시 구동, KeepAlive로 크래시 재시작 (2026-07-26, 설치·검증 완료, [운영 매뉴얼](../deploy/macos/README.md))
 - [ ] 원격 오디오 인제스트 엔드포인트 신설 — PCM 청크 수신 → 실시간 미리보기(`musicna-live` 파이프라인 재사용) + 트랙 종료 시 WAV 완성 저장(`musicna-analyze` 배치가 그대로 집어감)
 - [ ] **(macOS)** 마일스톤: 집 밖에서 Tailscale로 api 접속 → 라이브러리 조회·재생 원격제어 확인
 

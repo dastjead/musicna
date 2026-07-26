@@ -880,7 +880,7 @@ echo "로그: tail -f $HOME/Library/Logs/musicna-api.log"
 chmod +x deploy/macos/install.sh
 ```
 
-- [ ] **Step 4: (macOS 실기기) 설치 및 검증** — 아직 진행 안 함, 사용자와 직접 실행 예정 (Step 1~3·5는 서브에이전트가 완료, 커밋 `aaeb595`)
+- [x] **Step 4: (macOS 실기기) 설치 및 검증** — 사용자가 직접 실행·확인 완료(2026-07-26)
 
 Run: `./deploy/macos/install.sh`
 Expected: "설치 완료" 출력
