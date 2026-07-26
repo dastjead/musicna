@@ -156,7 +156,7 @@ git commit -m "refactor: live_cli의 청크 처리 로직을 process_chunk로 �
 - Consumes: `process_chunk` (Task 1), `LiveChordTracker`(`musicna_core.analyze.live_chords`), `float32_to_int16`(`musicna_api.session.pcm`), `TrackMeta`/`LiveEvent`(`musicna_core.models`)
 - Produces: `RemoteCaptureManager(out_dir: Path, transcribe_chunk: Callable[[np.ndarray, int], Iterator[Any]] | None = None)` — `.start(meta: TrackMeta, sample_rate: int, channels: int, chunk_s: float = 5.0) -> str`(session_id), `.feed(session_id: str, raw_float32: bytes) -> list[LiveEvent]`(미지의 session_id면 `KeyError`), `.end(session_id: str) -> Path`(wav_path, 미지의 session_id면 `KeyError`). Task 3이 이 클래스를 라우터에서 사용한다.
 
-- [ ] **Step 1: 실패하는 테스트를 작성**
+- [x] **Step 1: 실패하는 테스트를 작성**
 
 `api/tests/test_remote_capture.py` 생성:
 
@@ -240,12 +240,12 @@ def test_stereo_downmix_for_transcription(manager):
     assert (progress.chunk_start_s, progress.chunk_end_s) == (0.0, 1.0)
 ```
 
-- [ ] **Step 2: 테스트 실행 → 실패 확인**
+- [x] **Step 2: 테스트 실행 → 실패 확인**
 
 Run: `uv run pytest api/tests/test_remote_capture.py -v`
 Expected: FAIL — `ModuleNotFoundError: No module named 'musicna_api.remote_capture'`
 
-- [ ] **Step 3: `remote_capture.py` 구현 (핵심 로직만, 라우터는 Task 3에서 추가)**
+- [x] **Step 3: `remote_capture.py` 구현 (핵심 로직만, 라우터는 Task 3에서 추가)**
 
 `api/src/musicna_api/remote_capture.py` 생성:
 
@@ -389,12 +389,12 @@ class RemoteCaptureManager:
         return session.wav_path
 ```
 
-- [ ] **Step 4: 테스트 실행 → 통과 확인**
+- [x] **Step 4: 테스트 실행 → 통과 확인**
 
 Run: `uv run pytest api/tests/test_remote_capture.py -v`
 Expected: PASS — 7개 전부
 
-- [ ] **Step 5: 커밋**
+- [x] **Step 5: 커밋** (실제 커밋: `6afbf2d`. 리뷰에서 비정렬 PCM 청크 가드 누락 발견 → fix round 1로 수정, 테스트 1건 추가·8개 전부 통과, 커밋 `22a4a5c`)
 
 ```bash
 git add api/src/musicna_api/remote_capture.py api/tests/test_remote_capture.py
