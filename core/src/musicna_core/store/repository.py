@@ -9,8 +9,16 @@ from datetime import datetime
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from musicna_core.models import AnalysisResult, ChordEvent, MoodTag, Section, TrackMeta
-from musicna_core.store.db import Analysis, Chord, Mood, SectionRow, Track
+from musicna_core.models import (
+    AnalysisResult,
+    ChordEvent,
+    ChordLoop,
+    MoodTag,
+    Section,
+    SectionChordSummary,
+    TrackMeta,
+)
+from musicna_core.store.db import Analysis, Chord, ChordLoopRow, Mood, SectionChordSummaryRow, SectionRow, Track
 
 
 def save_analysis(session: Session, result: AnalysisResult, audio_path: str | None = None) -> Track:
@@ -53,6 +61,17 @@ def save_analysis(session: Session, result: AnalysisResult, audio_path: str | No
         for c in result.chords
     ]
     analysis.moods = [Mood(tag=m.tag, score=m.score) for m in result.moods]
+    analysis.section_chord_summaries = [
+        SectionChordSummaryRow(
+            section_label=s.section_label, start_s=s.start_s, end_s=s.end_s,
+            roman_progression=json.dumps(s.roman_progression), repeats_of=s.repeats_of,
+        )
+        for s in result.section_chord_summaries
+    ]
+    analysis.chord_loops = [
+        ChordLoopRow(pattern=json.dumps(loop.pattern), occurrences=json.dumps(loop.occurrences))
+        for loop in result.chord_loops
+    ]
     session.add(analysis)
     session.commit()
     return track
@@ -79,6 +98,17 @@ def _to_result(analysis: Analysis) -> AnalysisResult:
             for c in analysis.chords
         ],
         moods=[MoodTag(tag=m.tag, score=m.score) for m in analysis.moods],
+        section_chord_summaries=[
+            SectionChordSummary(
+                section_label=s.section_label, start_s=s.start_s, end_s=s.end_s,
+                roman_progression=json.loads(s.roman_progression), repeats_of=s.repeats_of,
+            )
+            for s in analysis.section_chord_summaries
+        ],
+        chord_loops=[
+            ChordLoop(pattern=json.loads(loop.pattern), occurrences=json.loads(loop.occurrences))
+            for loop in analysis.chord_loops
+        ],
         midi_path=track.midi_path,
         engine_versions=json.loads(analysis.engine_versions or "{}"),
         analyzed_at=analysis.analyzed_at,

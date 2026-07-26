@@ -5,7 +5,7 @@ Phase 4에서 Alembic 마이그레이션을 도입하기 전까지는 create_all
 
 from datetime import datetime
 
-from sqlalchemy import DateTime, Float, ForeignKey, String, create_engine
+from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, create_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship, sessionmaker
 
 
@@ -45,6 +45,8 @@ class Analysis(Base):
     sections: Mapped[list["SectionRow"]] = relationship(back_populates="analysis")
     chords: Mapped[list["Chord"]] = relationship(back_populates="analysis")
     moods: Mapped[list["Mood"]] = relationship(back_populates="analysis")
+    section_chord_summaries: Mapped[list["SectionChordSummaryRow"]] = relationship(back_populates="analysis")
+    chord_loops: Mapped[list["ChordLoopRow"]] = relationship(back_populates="analysis")
 
 
 class SectionRow(Base):
@@ -82,6 +84,31 @@ class Mood(Base):
     score: Mapped[float] = mapped_column(Float)
 
     analysis: Mapped[Analysis] = relationship(back_populates="moods")
+
+
+class SectionChordSummaryRow(Base):
+    __tablename__ = "section_chord_summaries"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    analysis_id: Mapped[int] = mapped_column(ForeignKey("analyses.id"))
+    section_label: Mapped[str] = mapped_column(String)
+    start_s: Mapped[float] = mapped_column(Float)
+    end_s: Mapped[float] = mapped_column(Float)
+    roman_progression: Mapped[str] = mapped_column(String)  # JSON 리스트 문자열
+    repeats_of: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+    analysis: Mapped[Analysis] = relationship(back_populates="section_chord_summaries")
+
+
+class ChordLoopRow(Base):
+    __tablename__ = "chord_loops"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    analysis_id: Mapped[int] = mapped_column(ForeignKey("analyses.id"))
+    pattern: Mapped[str] = mapped_column(String)      # JSON 리스트 문자열
+    occurrences: Mapped[str] = mapped_column(String)  # JSON 리스트[[start,end],...] 문자열
+
+    analysis: Mapped[Analysis] = relationship(back_populates="chord_loops")
 
 
 def create_session_factory(db_path: str = "data/musicna.db") -> sessionmaker:

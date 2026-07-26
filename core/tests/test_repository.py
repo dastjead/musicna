@@ -6,9 +6,11 @@ from musicna_core.models import (
     AnalysisResult,
     CaptureSource,
     ChordEvent,
+    ChordLoop,
     ChordSource,
     MoodTag,
     Section,
+    SectionChordSummary,
     TrackMeta,
 )
 from musicna_core.store import create_session_factory, list_latest_analyses, save_analysis
@@ -23,6 +25,15 @@ def _result(title="Song A", captured_at=None, bpm=120.0):
         sections=[Section(label="chorus", start_s=30.0, end_s=60.0)],
         chords=[ChordEvent(chord="Am7", start_s=0.0, end_s=2.0, source=ChordSource.MIDI, confidence=0.9)],
         moods=[MoodTag(tag="energetic", score=0.8)],
+        section_chord_summaries=[
+            SectionChordSummary(
+                section_label="chorus", start_s=30.0, end_s=60.0,
+                roman_progression=["I", "V", "vi", "IV"], repeats_of=None,
+            )
+        ],
+        chord_loops=[
+            ChordLoop(pattern=["I", "V", "vi", "IV"], occurrences=[(30.0, 34.0), (34.0, 38.0)])
+        ],
         midi_path="data/midi/a.mid",
         engine_versions={"music21": "10.5.0"},
         analyzed_at=datetime(2026, 7, 25, 12, 0),
