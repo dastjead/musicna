@@ -134,7 +134,7 @@ git commit -m "feat: AnalysisResult.id 필드 + get_track_by_id 단건 조회 �
 - Consumes: `get_track_by_id`(Task 1)
 - Produces: `GET /tracks/{track_id}` → `AnalysisResult` 또는 404. `GET /tracks/{track_id}/midi` → MIDI 파일 바이너리(`audio/midi`) 또는 404(트랙 없음·MIDI 경로 없음·파일이 디스크에 없음 세 경우 모두 404).
 
-- [x] **Step 1: 실패하는 테스트를 작성**
+- [ ] **Step 1: 실패하는 테스트를 작성**
 
 `api/tests/test_tracks_endpoint.py`의 기존 import(`AnalysisResult`, `TrackMeta`, `create_session_factory`, `save_analysis` 등)로 아래 테스트가 전부 커버되므로 import 변경은 불필요하다. 파일 끝에 아래 테스트를 추가:
 
@@ -208,12 +208,12 @@ def test_get_track_midi_404_when_track_missing(client):
     assert r.status_code == 404
 ```
 
-- [x] **Step 2: 테스트 실행 → 실패 확인**
+- [ ] **Step 2: 테스트 실행 → 실패 확인**
 
 Run: `uv run pytest api/tests/test_tracks_endpoint.py -v`
 Expected: FAIL — `404`가 아니라 다른 상태 코드(라우트 자체가 없어 FastAPI가 405 또는 404를 다르게 반환하거나, 웹 정적 서빙 마운트에 걸림) — "테스트가 실패한다"는 사실만 확인하면 됨
 
-- [x] **Step 3: `api/src/musicna_api/main.py`에 두 라우트 추가**
+- [ ] **Step 3: `api/src/musicna_api/main.py`에 두 라우트 추가**
 
 상단 import를 아래로 교체:
 
@@ -258,17 +258,17 @@ def get_track_midi(track_id: int, db: Session = Depends(get_db)) -> FileResponse
     return FileResponse(midi_path, media_type="audio/midi", filename=midi_path.name)
 ```
 
-- [x] **Step 4: 테스트 실행 → 통과 확인**
+- [ ] **Step 4: 테스트 실행 → 통과 확인**
 
 Run: `uv run pytest api/tests/test_tracks_endpoint.py -v`
 Expected: PASS — 전부(기존 2개 + 신규 6개 = 8개)
 
-- [x] **Step 5: 전체 api 테스트로 회귀 확인**
+- [ ] **Step 5: 전체 api 테스트로 회귀 확인**
 
 Run: `uv run pytest core/tests api/tests tui/tests -v`
 Expected: PASS — 전부
 
-- [x] **Step 6: 커밋**
+- [ ] **Step 6: 커밋**
 
 ```bash
 git add api/src/musicna_api/main.py api/tests/test_tracks_endpoint.py
