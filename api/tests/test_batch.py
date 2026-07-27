@@ -47,9 +47,9 @@ def test_batch_analyzes_and_skips_on_rerun(tmp_path):
     assert result.track.title == "Song"
     assert result.key == "C" and len(result.chords) >= 2
 
-    # 재실행 시 중복 분석 없이 건너뛴다
+    # WAV는 분석 성공 직후 삭제되므로, 재실행 시 스캔 대상 자체가 없어 아무 것도 처리되지 않는다
     counts = analyze_captured(audio_dir, midi_dir, db)
-    assert counts == {"analyzed": 0, "skipped": 1, "failed": 0}
+    assert counts == {"analyzed": 0, "skipped": 0, "failed": 0}
 
 
 def test_batch_without_sidecar_is_skipped(tmp_path):
@@ -58,3 +58,34 @@ def test_batch_without_sidecar_is_skipped(tmp_path):
     (audio_dir / "orphan.wav").write_bytes(b"RIFF-dummy")
     counts = analyze_captured(audio_dir, midi_dir, str(tmp_path / "b.db"))
     assert counts == {"analyzed": 0, "skipped": 1, "failed": 0}
+
+
+def test_batch_deletes_wav_after_successful_analysis(tmp_path):
+    audio_dir, midi_dir = tmp_path / "audio", tmp_path / "midi"
+    db = str(tmp_path / "b.db")
+    _prepare_capture(audio_dir, midi_dir)
+    wav_path = audio_dir / "001 - Tester - Song.wav"
+    json_path = audio_dir / "001 - Tester - Song.json"
+
+    counts = analyze_captured(audio_dir, midi_dir, db)
+    assert counts == {"analyzed": 1, "skipped": 0, "failed": 0}
+    assert not wav_path.exists()  # 분석 성공 직후 WAV 삭제
+    assert json_path.exists()     # 사이드카 JSON은 유지(재스캔 무의미 판단·디버깅용)
+
+
+def test_batch_keeps_wav_when_analysis_fails(tmp_path, monkeypatch):
+    audio_dir, midi_dir = tmp_path / "audio", tmp_path / "midi"
+    db = str(tmp_path / "b.db")
+    _prepare_capture(audio_dir, midi_dir)
+    wav_path = audio_dir / "001 - Tester - Song.wav"
+
+    import musicna_api.batch as batch_mod
+
+    def _raise(*args, **kwargs):
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(batch_mod, "analyze_track", _raise)
+
+    counts = analyze_captured(audio_dir, midi_dir, db)
+    assert counts == {"analyzed": 0, "skipped": 0, "failed": 1}
+    assert wav_path.exists()  # 분석 실패 시 WAV는 삭제하지 않는다(재시도 가능하도록)

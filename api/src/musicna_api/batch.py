@@ -55,6 +55,7 @@ def analyze_captured(
 
                 result = analyze_track(wav_path, midi_path if midi_path.exists() else None, meta)
                 save_analysis(session, result, audio_path=str(wav_path))
+                wav_path.unlink(missing_ok=True)
                 counts["analyzed"] += 1
                 logger.info("분석 완료: %s — key=%s %s, 코드 %d개, 구간 %d개",
                             meta.title, result.key, result.mode, len(result.chords), len(result.sections))
