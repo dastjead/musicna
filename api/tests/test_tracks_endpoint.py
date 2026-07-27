@@ -41,3 +41,72 @@ def test_tracks_returns_saved_analysis(client, tmp_path):
     assert body[0]["chords"][0]["chord"] == "C"
     # 응답이 공용 계약 모델로 역직렬화 가능해야 한다 (iOS/웹 클라이언트 관점)
     assert AnalysisResult.model_validate(body[0]).key == "C"
+
+
+def test_get_track_by_id_returns_analysis(client, tmp_path):
+    factory = create_session_factory(str(tmp_path / "api.db"))
+    with factory() as session:
+        track = save_analysis(session, AnalysisResult(
+            track=TrackMeta(title="Song", artist="Tester", captured_at=datetime(2026, 7, 25, 10, 0)),
+            key="C", mode="major",
+        ))
+        track_id = track.id
+
+    r = client.get(f"/tracks/{track_id}")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["id"] == track_id
+    assert body["track"]["title"] == "Song"
+
+
+def test_get_track_by_id_404_when_missing(client):
+    r = client.get("/tracks/999")
+    assert r.status_code == 404
+
+
+def test_get_track_midi_serves_file(client, tmp_path):
+    midi_path = tmp_path / "song.mid"
+    midi_path.write_bytes(b"MThd fake midi bytes")
+    factory = create_session_factory(str(tmp_path / "api.db"))
+    with factory() as session:
+        track = save_analysis(session, AnalysisResult(
+            track=TrackMeta(title="Song", captured_at=datetime(2026, 7, 25, 10, 0)),
+            midi_path=str(midi_path),
+        ))
+        track_id = track.id
+
+    r = client.get(f"/tracks/{track_id}/midi")
+    assert r.status_code == 200
+    assert r.content == b"MThd fake midi bytes"
+    assert r.headers["content-type"] == "audio/midi"
+
+
+def test_get_track_midi_404_when_no_midi_path(client, tmp_path):
+    factory = create_session_factory(str(tmp_path / "api.db"))
+    with factory() as session:
+        track = save_analysis(session, AnalysisResult(
+            track=TrackMeta(title="NoMidi", captured_at=datetime(2026, 7, 25, 10, 0)),
+        ))
+        track_id = track.id
+
+    r = client.get(f"/tracks/{track_id}/midi")
+    assert r.status_code == 404
+
+
+def test_get_track_midi_404_when_file_missing_on_disk(client, tmp_path):
+    factory = create_session_factory(str(tmp_path / "api.db"))
+    missing_midi = tmp_path / "gone.mid"  # 저장은 됐지만 실제 파일은 없는 상황(재분석 도중 삭제된 경우 등)
+    with factory() as session:
+        track = save_analysis(session, AnalysisResult(
+            track=TrackMeta(title="Ghost", captured_at=datetime(2026, 7, 25, 10, 0)),
+            midi_path=str(missing_midi),
+        ))
+        track_id = track.id
+
+    r = client.get(f"/tracks/{track_id}/midi")
+    assert r.status_code == 404
+
+
+def test_get_track_midi_404_when_track_missing(client):
+    r = client.get("/tracks/999/midi")
+    assert r.status_code == 404

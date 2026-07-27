@@ -14,14 +14,15 @@ from collections.abc import Iterator
 from functools import lru_cache
 from pathlib import Path
 
-from fastapi import Depends, FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import Depends, FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 
 from musicna_api import player, remote_capture, system
 from musicna_api.live import broadcaster
 from musicna_core.models import AnalysisResult, LiveEvent, live_event_adapter
-from musicna_core.store import create_session_factory, list_latest_analyses
+from musicna_core.store import create_session_factory, get_track_by_id, list_latest_analyses
 
 app = FastAPI(title="musicna", version="0.1.0")
 app.include_router(player.router)
@@ -48,6 +49,27 @@ def health() -> dict[str, str]:
 def list_tracks(db: Session = Depends(get_db)) -> list[AnalysisResult]:
     """트랙별 최신 분석 결과, 캡처 시각 역순."""
     return list_latest_analyses(db)
+
+
+@app.get("/tracks/{track_id}", response_model=AnalysisResult)
+def get_track(track_id: int, db: Session = Depends(get_db)) -> AnalysisResult:
+    """트랙 단건 조회 — 없으면 404."""
+    result = get_track_by_id(db, track_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail="track not found")
+    return result
+
+
+@app.get("/tracks/{track_id}/midi")
+def get_track_midi(track_id: int, db: Session = Depends(get_db)) -> FileResponse:
+    """트랙의 MIDI 파일을 바이너리로 서빙 — 트랙이 없거나, MIDI 경로가 없거나, 파일이 디스크에 없으면 404."""
+    result = get_track_by_id(db, track_id)
+    if result is None or result.midi_path is None:
+        raise HTTPException(status_code=404, detail="midi not found")
+    midi_path = Path(result.midi_path)
+    if not midi_path.exists():
+        raise HTTPException(status_code=404, detail="midi file missing on disk")
+    return FileResponse(midi_path, media_type="audio/midi", filename=midi_path.name)
 
 
 # ── 실시간 미리보기 (Phase 6) ──────────────────────────────────────────
