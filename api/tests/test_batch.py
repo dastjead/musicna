@@ -73,6 +73,28 @@ def test_batch_deletes_wav_after_successful_analysis(tmp_path):
     assert json_path.exists()     # 사이드카 JSON은 유지(재스캔 무의미 판단·디버깅용)
 
 
+def test_batch_counts_as_analyzed_even_if_wav_unlink_fails(tmp_path, monkeypatch):
+    audio_dir, midi_dir = tmp_path / "audio", tmp_path / "midi"
+    db = str(tmp_path / "b.db")
+    _prepare_capture(audio_dir, midi_dir)
+    wav_path = audio_dir / "001 - Tester - Song.wav"
+
+    from pathlib import Path
+
+    def _raise_unlink(self, *args, **kwargs):
+        raise PermissionError("boom")
+
+    monkeypatch.setattr(Path, "unlink", _raise_unlink)
+
+    counts = analyze_captured(audio_dir, midi_dir, db)
+    # 분석·저장은 이미 성공했으므로 WAV 삭제 실패는 failed로 오분류되지 않는다
+    assert counts == {"analyzed": 1, "skipped": 0, "failed": 0}
+    with create_session_factory(db)() as session:
+        [result] = list_latest_analyses(session)
+    assert result.track.title == "Song"
+    assert wav_path.exists()  # 삭제 실패했으므로 디스크에 남아있음(안전한 상태)
+
+
 def test_batch_keeps_wav_when_analysis_fails(tmp_path, monkeypatch):
     audio_dir, midi_dir = tmp_path / "audio", tmp_path / "midi"
     db = str(tmp_path / "b.db")
