@@ -16,7 +16,7 @@
 
 1. `git pull` — 원격이 이 문서보다 앞서 있을 수 있음(원격 담당은 `core/`·문서·Phase 8)
 2. `uv sync --all-packages --extra transcribe --extra analyze --extra mood` — **주의**: extras 없이 `uv sync`/`uv run pytest`를 여러 번 반복하면 이 명령으로 깔린 ML 스택(torch/natten/setuptools/cmake/ninja)이 조용히 제거된다(아래 "환경 이슈" 참조) — Phase 3~7 관련 작업 전엔 항상 이 커맨드로 먼저 확인
-3. `uv run pytest core/tests api/tests tui/tests` → 185 passed 기대(2026-07-27 코드 진행 추상화 구조 완료 기준 최신 수치, Phase 8 진행되면 늘어남)
+3. `uv run pytest core/tests api/tests tui/tests` → 195 passed 기대(2026-07-27 코드 진행 추상화 구조 완료 기준 최신 수치, Phase 8 진행되면 늘어남)
 4. macOS에서 spotify_player/TUI 작업 시: `export PATH="$HOME/.cargo/bin:$PATH"`(이미 `.zshrc`에 추가돼 있으면 새 셸에서 자동), `spotify_player --version`으로 daemon feature 포함 여부 확인(`spotify_player --help`에 `-d`/`--daemon`이 보여야 함 — 안 보이면 아래 "spotify_player 설치 절차"부터 재수행)
 5. Phase 8 착수 시 참고 문서: 설계는 이미 [docs/superpowers/specs/2026-07-26-tui-player-orchestration-design.md](superpowers/specs/2026-07-26-tui-player-orchestration-design.md)에 있고(Phase 7·8 함께 설계됨), Phase 8용 새 구현 계획만 `superpowers:writing-plans`로 작성하면 됨(검색·플레이리스트를 `player.py`에 CLI 래퍼로 추가 → `/player/search`,`/player/playlists` 라우트 → TUI에 실시간뷰·라이브러리 위젯 추가, 웹의 `live.js`/`app.js` 패턴 재사용)
 6. **Phase 8.5는 구현 완료**(2026-07-26, Task 1~7) — 설계는 [docs/superpowers/specs/2026-07-26-central-deployment-ios-player-design.md](superpowers/specs/2026-07-26-central-deployment-ios-player-design.md), 구현 계획·진행 기록은 [docs/superpowers/plans/2026-07-26-phase-8-5-central-deployment.md](superpowers/plans/2026-07-26-phase-8-5-central-deployment.md), 운영 매뉴얼은 [deploy/macos/README.md](../deploy/macos/README.md) 참조. 남은 건 위 "다음 할 일 (macOS)"의 백로그 2건(TUI 원격 접속·재부팅 복구 확인)뿐. Phase 10(iOS 앱) 착수 시에도 같은 설계 스펙 참고(iOS 자체 재생·캡처 타당성 조사·논의 과정 포함)
