@@ -11,7 +11,7 @@ from musicna_core.store.db import (
     Track,
     create_session_factory,
 )
-from musicna_core.store.repository import has_analysis, list_latest_analyses, save_analysis
+from musicna_core.store.repository import get_track_by_id, has_analysis, list_latest_analyses, save_analysis
 
 __all__ = [
     "Analysis",
@@ -23,6 +23,7 @@ __all__ = [
     "SectionRow",
     "Track",
     "create_session_factory",
+    "get_track_by_id",
     "has_analysis",
     "list_latest_analyses",
     "save_analysis",

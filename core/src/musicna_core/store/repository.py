@@ -80,6 +80,7 @@ def save_analysis(session: Session, result: AnalysisResult, audio_path: str | No
 def _to_result(analysis: Analysis) -> AnalysisResult:
     track = analysis.track
     return AnalysisResult(
+        id=track.id,
         track=TrackMeta(
             title=track.title,
             artist=track.artist,
@@ -127,12 +128,24 @@ def has_analysis(session: Session, meta: TrackMeta) -> bool:
     return track is not None and len(track.analyses) > 0
 
 
+def _latest_analysis(track: Track) -> Analysis:
+    return max(track.analyses, key=lambda a: (a.analyzed_at or datetime.min, a.id))
+
+
+def get_track_by_id(session: Session, track_id: int) -> AnalysisResult | None:
+    """id로 트랙을 조회해 최신 분석 결과를 돌려준다. 트랙이 없거나 분석 이력이 없으면 None."""
+    track = session.get(Track, track_id)
+    if track is None or not track.analyses:
+        return None
+    return _to_result(_latest_analysis(track))
+
+
 def list_latest_analyses(session: Session) -> list[AnalysisResult]:
     """트랙마다 최신 분석 1건씩, 캡처 시각 역순으로 돌려준다."""
     tracks = session.scalars(select(Track).order_by(Track.captured_at.desc(), Track.id.desc())).all()
     results = []
     for track in tracks:
         if track.analyses:
-            latest = max(track.analyses, key=lambda a: (a.analyzed_at or datetime.min, a.id))
+            latest = _latest_analysis(track)
             results.append(_to_result(latest))
     return results

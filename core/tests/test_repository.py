@@ -13,7 +13,7 @@ from musicna_core.models import (
     SectionChordSummary,
     TrackMeta,
 )
-from musicna_core.store import create_session_factory, list_latest_analyses, save_analysis
+from musicna_core.store import create_session_factory, get_track_by_id, list_latest_analyses, save_analysis
 
 
 def _result(title="Song A", captured_at=None, bpm=120.0):
@@ -47,7 +47,8 @@ def test_save_and_list_roundtrip(tmp_path):
         save_analysis(session, original, audio_path="data/audio/a.wav")
     with factory() as session:
         [loaded] = list_latest_analyses(session)
-    assert loaded == original
+    assert loaded.id is not None
+    assert loaded.model_copy(update={"id": None}) == original
 
 
 def test_reanalysis_reuses_track_and_returns_latest(tmp_path):
@@ -74,3 +75,23 @@ def test_multiple_tracks_ordered_by_captured_desc(tmp_path):
         save_analysis(session, _result(title="New", captured_at=datetime(2026, 7, 25, 9, 0)))
         results = list_latest_analyses(session)
     assert [r.track.title for r in results] == ["New", "Old"]
+
+
+def test_get_track_by_id_returns_result(tmp_path):
+    factory = create_session_factory(str(tmp_path / "t.db"))
+    with factory() as session:
+        track = save_analysis(session, _result(captured_at=datetime(2026, 7, 25, 10, 0)))
+        track_id = track.id
+
+    with factory() as session:
+        result = get_track_by_id(session, track_id)
+    assert result is not None
+    assert result.id == track_id
+    assert result.track.title == "Song A"
+
+
+def test_get_track_by_id_returns_none_when_missing(tmp_path):
+    factory = create_session_factory(str(tmp_path / "t.db"))
+    with factory() as session:
+        result = get_track_by_id(session, 999)
+    assert result is None

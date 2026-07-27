@@ -126,6 +126,7 @@ live_event_adapter: TypeAdapter[LiveEvent] = TypeAdapter(LiveEvent)
 class AnalysisResult(BaseModel):
     """한 곡에 대한 배치 분석의 최종 산출물. DB 저장과 API 응답의 원천."""
 
+    id: int | None = None  # DB 저장 전에는 None, 저장 후 조회 시 실제 트랙 id로 채워짐
     track: TrackMeta
     bpm: float | None = None
     key: str | None = None  # 예: "C", "F#"
