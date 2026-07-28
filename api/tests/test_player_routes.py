@@ -89,3 +89,48 @@ def test_status_returns_null_when_nothing_playing(monkeypatch, client):
     r = client.get("/player/status")
     assert r.status_code == 200
     assert r.json() is None
+
+
+from musicna_api.player import Playlist, SearchResults
+
+
+def test_search_returns_results(monkeypatch, client):
+    monkeypatch.setattr(
+        player, "search",
+        lambda query: SearchResults(playlists=[{"id": "p1", "name": "X", "owner": None}]),
+    )
+    r = client.get("/player/search", params={"query": "test"})
+    assert r.status_code == 200
+    assert r.json()["playlists"][0]["id"] == "p1"
+
+
+def test_search_failure_returns_503(monkeypatch, client):
+    def _raise(query):
+        raise SpotifyPlayerError("no active device")
+    monkeypatch.setattr(player, "search", _raise)
+    r = client.get("/player/search", params={"query": "test"})
+    assert r.status_code == 503
+
+
+def test_playlists_returns_list(monkeypatch, client):
+    monkeypatch.setattr(player, "list_playlists",
+                         lambda: [Playlist(id="p1", name="X", owner="Y", collaborative=False)])
+    r = client.get("/player/playlists")
+    assert r.status_code == 200
+    assert r.json()[0]["id"] == "p1"
+
+
+def test_play_playlist_returns_ok(monkeypatch, client):
+    calls = []
+    monkeypatch.setattr(player, "play_playlist", lambda playlist_id: calls.append(playlist_id))
+    r = client.post("/player/playlists/p1/play")
+    assert r.status_code == 200
+    assert calls == ["p1"]
+
+
+def test_play_playlist_failure_returns_503(monkeypatch, client):
+    def _raise(playlist_id):
+        raise SpotifyPlayerError("daemon not running")
+    monkeypatch.setattr(player, "play_playlist", _raise)
+    r = client.post("/player/playlists/p1/play")
+    assert r.status_code == 503

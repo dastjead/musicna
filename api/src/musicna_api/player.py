@@ -368,3 +368,28 @@ def api_get_status() -> PlayerStatus | None:
         return get_status()
     except SpotifyPlayerError as e:
         raise HTTPException(status_code=503, detail=str(e)) from e
+
+
+@router.get("/search", response_model=SearchResults)
+def api_search(query: str) -> SearchResults:
+    try:
+        return search(query)
+    except SpotifyPlayerError as e:
+        raise HTTPException(status_code=503, detail=str(e)) from e
+
+
+@router.get("/playlists", response_model=list[Playlist])
+def api_list_playlists() -> list[Playlist]:
+    try:
+        return list_playlists()
+    except SpotifyPlayerError as e:
+        raise HTTPException(status_code=503, detail=str(e)) from e
+
+
+@router.post("/playlists/{playlist_id}/play")
+def api_play_playlist(playlist_id: str) -> dict[str, str]:
+    try:
+        play_playlist(playlist_id)
+    except SpotifyPlayerError as e:
+        raise HTTPException(status_code=503, detail=str(e)) from e
+    return {"status": "ok"}
