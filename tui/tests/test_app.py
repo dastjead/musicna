@@ -3,7 +3,11 @@
 import pytest
 
 from musicna_tui.app import DEFAULT_API_URL, MusicnaApp
+from musicna_tui.widgets.library_browser import LibraryBrowserWidget
+from musicna_tui.widgets.live_analysis import LiveAnalysisWidget
 from musicna_tui.widgets.player_panel import PlayerPanel
+from musicna_tui.widgets.playlists_screen import PlaylistsScreen
+from musicna_tui.widgets.search_screen import SearchScreen
 from musicna_tui.widgets.session_status import SessionStatus
 
 
@@ -20,13 +24,16 @@ def test_app_uses_musicna_api_url_env_var(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_app_composes_player_panel_and_session_status(monkeypatch):
+async def test_app_composes_all_widgets(monkeypatch):
     app = MusicnaApp()
     monkeypatch.setattr(app.client, "system_start", lambda: {"spotify_player_daemon": True, "session_capturing": False})
+    monkeypatch.setattr(app.client, "tracks", lambda: [])
     async with app.run_test() as pilot:
         await pilot.pause()
         assert pilot.app.query_one(PlayerPanel) is not None
         assert pilot.app.query_one(SessionStatus) is not None
+        assert pilot.app.query_one(LiveAnalysisWidget) is not None
+        assert pilot.app.query_one(LibraryBrowserWidget) is not None
 
 
 @pytest.mark.asyncio
@@ -38,6 +45,9 @@ async def test_app_exits_with_message_when_system_start_fails(monkeypatch):
         raise RuntimeError("연결 실패")
 
     monkeypatch.setattr(app.client, "system_start", _raise)
+    # exit()를 모킹해 앱이 실제로 종료되지 않으므로 LibraryBrowserWidget도 마운트된다.
+    # 실제 네트워크에 의존하지 않도록 tracks()도 함께 모킹한다.
+    monkeypatch.setattr(app.client, "tracks", lambda: [])
     exit_calls = []
     monkeypatch.setattr(app, "exit", lambda *a, **kw: exit_calls.append(kw))
 
@@ -46,3 +56,28 @@ async def test_app_exits_with_message_when_system_start_fails(monkeypatch):
 
     assert len(exit_calls) == 1
     assert "연결 실패" in exit_calls[0]["message"]
+
+
+@pytest.mark.asyncio
+async def test_slash_key_opens_search_screen(monkeypatch):
+    app = MusicnaApp()
+    monkeypatch.setattr(app.client, "system_start", lambda: {"spotify_player_daemon": True, "session_capturing": False})
+    monkeypatch.setattr(app.client, "tracks", lambda: [])
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await pilot.press("/")
+        await pilot.pause()
+        assert isinstance(pilot.app.screen, SearchScreen)
+
+
+@pytest.mark.asyncio
+async def test_u_key_opens_playlists_screen(monkeypatch):
+    app = MusicnaApp()
+    monkeypatch.setattr(app.client, "system_start", lambda: {"spotify_player_daemon": True, "session_capturing": False})
+    monkeypatch.setattr(app.client, "tracks", lambda: [])
+    monkeypatch.setattr(app.client, "player_playlists", lambda: [])
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await pilot.press("u")
+        await pilot.pause()
+        assert isinstance(pilot.app.screen, PlaylistsScreen)
