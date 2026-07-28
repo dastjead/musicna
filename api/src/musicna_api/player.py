@@ -41,6 +41,44 @@ class PlayerDevice(BaseModel):
     volume_percent: int | None = None
 
 
+class SearchTrack(BaseModel):
+    id: str
+    name: str
+    artists: list[str] = []
+    album: str | None = None
+    duration_s: float | None = None
+
+
+class SearchArtist(BaseModel):
+    id: str
+    name: str
+
+
+class SearchAlbum(BaseModel):
+    id: str
+    name: str
+
+
+class SearchPlaylist(BaseModel):
+    id: str
+    name: str
+    owner: str | None = None
+
+
+class SearchResults(BaseModel):
+    tracks: list[SearchTrack] = []
+    artists: list[SearchArtist] = []
+    albums: list[SearchAlbum] = []
+    playlists: list[SearchPlaylist] = []
+
+
+class Playlist(BaseModel):
+    id: str
+    name: str
+    owner: str | None = None
+    collaborative: bool = False
+
+
 def parse_playback_json(raw: str) -> PlayerStatus | None:
     """`spotify_player get key playback` 출력을 파싱. 재생 중이 아니면(JSON null) None."""
     data = json.loads(raw)
@@ -75,6 +113,48 @@ def parse_devices_json(raw: str) -> list[PlayerDevice]:
             volume_percent=d.get("volume_percent"),
         )
         for d in data
+    ]
+
+
+def _duration_to_seconds(duration: dict | None) -> float | None:
+    """spotify_player가 `std::time::Duration`을 serde 기본 표현({"secs","nanos"})으로 직렬화한다."""
+    if not duration:
+        return None
+    return duration.get("secs", 0) + duration.get("nanos", 0) / 1e9
+
+
+def parse_search_json(raw: str) -> SearchResults:
+    """`spotify_player search "<query>"` 출력을 파싱."""
+    data = json.loads(raw)
+    return SearchResults(
+        tracks=[
+            SearchTrack(
+                id=t["id"], name=t["name"],
+                artists=[a["name"] for a in t.get("artists", [])],
+                album=(t.get("album") or {}).get("name"),
+                duration_s=_duration_to_seconds(t.get("duration")),
+            )
+            for t in data.get("tracks", [])
+        ],
+        artists=[SearchArtist(id=a["id"], name=a["name"]) for a in data.get("artists", [])],
+        albums=[SearchAlbum(id=a["id"], name=a["name"]) for a in data.get("albums", [])],
+        playlists=[
+            SearchPlaylist(id=p["id"], name=p["name"], owner=(p.get("owner") or [None])[0])
+            for p in data.get("playlists", [])
+        ],
+    )
+
+
+def parse_playlists_json(raw: str) -> list[Playlist]:
+    """`spotify_player get key user-playlists` 출력을 파싱."""
+    data = json.loads(raw)
+    return [
+        Playlist(
+            id=p["id"], name=p["name"],
+            owner=(p.get("owner") or [None])[0],
+            collaborative=p.get("collaborative", False),
+        )
+        for p in data
     ]
 
 
@@ -133,6 +213,18 @@ def connect_device(device_id: str) -> None:
 
 def get_status() -> PlayerStatus | None:
     return parse_playback_json(_run_cli("get", "key", "playback"))
+
+
+def search(query: str) -> SearchResults:
+    return parse_search_json(_run_cli("search", query))
+
+
+def list_playlists() -> list[Playlist]:
+    return parse_playlists_json(_run_cli("get", "key", "user-playlists"))
+
+
+def play_playlist(playlist_id: str) -> None:
+    _run_cli("playback", "start", "context", "playlist", "--id", playlist_id)
 
 
 class SpotifyPlayerDaemon:

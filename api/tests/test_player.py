@@ -5,6 +5,83 @@ fixture 문자열은 실제 `spotify_player get key playback`/`get key devices` 
 """
 
 from musicna_api.player import PlayerDevice, PlayerStatus, parse_devices_json, parse_playback_json
+from musicna_api.player import (
+    Playlist, SearchResults, parse_playlists_json, parse_search_json,
+)
+
+# fixture는 aome510/spotify-player master 소스(state/model.rs의 SearchResults/Track/Playlist
+# 구조체, cli/client.rs의 serde_json 직렬화 경로)를 읽어 구성한 것 — macOS 실기기 미검증.
+# duration은 std::time::Duration의 serde 기본 표현({"secs", "nanos"})을 그대로 반영한다.
+SEARCH_JSON = """
+{
+  "tracks": [
+    {"id": "4y4VO05kYgUTo2bzbox1an", "name": "Test Song",
+     "artists": [{"id": "a1", "name": "Test Artist"}],
+     "album": {"id": "al1", "release_date": "2020-01-01", "name": "Test Album",
+               "artists": [{"id": "a1", "name": "Test Artist"}], "typ": "album", "added_at": 0},
+     "duration": {"secs": 219, "nanos": 413000000}, "explicit": false}
+  ],
+  "artists": [{"id": "a1", "name": "Test Artist"}],
+  "albums": [{"id": "al1", "release_date": "2020-01-01", "name": "Test Album",
+              "artists": [{"id": "a1", "name": "Test Artist"}], "typ": "album", "added_at": 0}],
+  "playlists": [
+    {"id": "37i9dQZF1DZ06evO08h9Zv", "collaborative": false, "name": "Test Playlist",
+     "owner": ["Test User", "user123"], "desc": "", "current_folder_id": 0, "snapshot_id": "snap1"}
+  ],
+  "shows": [], "episodes": []
+}
+"""
+
+USER_PLAYLISTS_JSON = """
+[
+  {"id": "37i9dQZF1DZ06evO08h9Zv", "collaborative": false, "name": "Liked Songs Radio",
+   "owner": ["Test User", "user123"], "desc": "", "current_folder_id": 0, "snapshot_id": "snap1"},
+  {"id": "5abcXYZ123", "collaborative": true, "name": "Shared Mix",
+   "owner": ["Friend", "user456"], "desc": "collab playlist", "current_folder_id": 0, "snapshot_id": "snap2"}
+]
+"""
+
+
+def test_parse_search_returns_tracks_artists_albums_playlists():
+    result = parse_search_json(SEARCH_JSON)
+    assert result.tracks[0].id == "4y4VO05kYgUTo2bzbox1an"
+    assert result.tracks[0].name == "Test Song"
+    assert result.tracks[0].artists == ["Test Artist"]
+    assert result.tracks[0].album == "Test Album"
+    assert result.tracks[0].duration_s == 219.413
+    assert result.artists[0].name == "Test Artist"
+    assert result.albums[0].name == "Test Album"
+    assert result.playlists[0].id == "37i9dQZF1DZ06evO08h9Zv"
+    assert result.playlists[0].owner == "Test User"
+
+
+def test_parse_search_empty_query_returns_empty_results():
+    assert parse_search_json(
+        '{"tracks": [], "artists": [], "albums": [], "playlists": [], "shows": [], "episodes": []}'
+    ) == SearchResults()
+
+
+def test_parse_search_track_without_album_has_none_album():
+    raw = """
+    {"tracks": [{"id": "t1", "name": "X", "artists": [], "album": null,
+                 "duration": {"secs": 10, "nanos": 0}, "explicit": false}],
+     "artists": [], "albums": [], "playlists": [], "shows": [], "episodes": []}
+    """
+    assert parse_search_json(raw).tracks[0].album is None
+
+
+def test_parse_playlists_returns_list():
+    playlists = parse_playlists_json(USER_PLAYLISTS_JSON)
+    assert playlists == [
+        Playlist(id="37i9dQZF1DZ06evO08h9Zv", name="Liked Songs Radio",
+                  owner="Test User", collaborative=False),
+        Playlist(id="5abcXYZ123", name="Shared Mix", owner="Friend", collaborative=True),
+    ]
+
+
+def test_parse_playlists_empty_list():
+    assert parse_playlists_json("[]") == []
+
 
 PLAYBACK_JSON = """
 {
