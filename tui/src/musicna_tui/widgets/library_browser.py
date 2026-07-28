@@ -20,18 +20,17 @@ class LibraryBrowserWidget(DataTable):
     def refresh_tracks(self) -> None:
         try:
             tracks = self.client.tracks()
+            self.clear()
+            for t in tracks:
+                bpm = f"{t['bpm']:.0f}" if t.get("bpm") else "-"
+                key = f"{t['key']} {t['mode']}" if t.get("key") else "-"
+                mood = t["moods"][0]["tag"] if t.get("moods") else "-"
+                self.add_row(
+                    t["track"]["title"],
+                    t["track"].get("artist") or "-",
+                    bpm, key, mood,
+                    key=str(t["id"]),
+                )
         except Exception:
             self.clear()
             self.add_row("api 연결 실패", "", "", "", "")
-            return
-        self.clear()
-        for t in tracks:
-            bpm = f"{t['bpm']:.0f}" if t.get("bpm") else "-"
-            key = f"{t['key']} {t['mode']}" if t.get("key") else "-"
-            mood = t["moods"][0]["tag"] if t.get("moods") else "-"
-            self.add_row(
-                t["track"]["title"],
-                t["track"].get("artist") or "-",
-                bpm, key, mood,
-                key=str(t["id"]),
-            )

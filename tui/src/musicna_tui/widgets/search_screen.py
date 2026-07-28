@@ -36,18 +36,18 @@ class SearchScreen(ModalScreen[None]):
         table.clear()
         try:
             results = self.client.player_search(event.value)
+            for t in results.get("tracks", []):
+                extra = f"{t.get('album') or '-'} · {', '.join(t.get('artists', [])) or '-'}"
+                table.add_row("트랙", t["name"], extra, key=f"track:{t['id']}")
+            for a in results.get("artists", []):
+                table.add_row("아티스트", a["name"], "-", key=f"artist:{a['id']}")
+            for a in results.get("albums", []):
+                table.add_row("앨범", a["name"], "-", key=f"album:{a['id']}")
+            for p in results.get("playlists", []):
+                table.add_row("플레이리스트", p["name"], p.get("owner") or "-",
+                               key=f"{_PLAYLIST_KEY_PREFIX}{p['id']}")
         except Exception:
             return
-        for t in results.get("tracks", []):
-            extra = f"{t.get('album') or '-'} · {', '.join(t.get('artists', [])) or '-'}"
-            table.add_row("트랙", t["name"], extra, key=f"track:{t['id']}")
-        for a in results.get("artists", []):
-            table.add_row("아티스트", a["name"], "-", key=f"artist:{a['id']}")
-        for a in results.get("albums", []):
-            table.add_row("앨범", a["name"], "-", key=f"album:{a['id']}")
-        for p in results.get("playlists", []):
-            table.add_row("플레이리스트", p["name"], p.get("owner") or "-",
-                           key=f"{_PLAYLIST_KEY_PREFIX}{p['id']}")
 
     def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
         row_key = event.row_key.value or ""

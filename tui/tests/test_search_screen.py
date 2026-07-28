@@ -71,6 +71,26 @@ async def test_selecting_playlist_row_plays_it_and_dismisses():
 
 
 @pytest.mark.asyncio
+async def test_no_crash_when_track_missing_id_field():
+    """응답은 왔지만 개별 트랙에 필수 필드(id)가 없으면 KeyError로 죽지 않고 조용히 폴백해야 한다."""
+    client = _FakeClient(results={
+        "tracks": [{"name": "Song", "artists": ["A"], "album": "Al"}],  # "id" 키가 없음
+        "artists": [], "albums": [], "playlists": [],
+    })
+    app = _HostApp(client)
+    async with app.run_test() as pilot:
+        await pilot.app.push_screen(SearchScreen(client))
+        await pilot.pause()
+        input_widget = pilot.app.screen.query_one(Input)
+        input_widget.post_message(Input.Submitted(input_widget, "test", None))
+        await pilot.pause()
+        # 크래시 없이 화면이 살아있는지 확인 (테이블은 비어 있거나 부분 채워짐)
+        table = pilot.app.screen.query_one(DataTable)
+        assert table.row_count == 0
+        assert len(pilot.app.screen_stack) == 2
+
+
+@pytest.mark.asyncio
 async def test_selecting_track_row_does_not_play_anything():
     """설계 스펙 범위: 트랙/아티스트/앨범 결과는 열람만 가능, 재생 동작 없음."""
     client = _FakeClient(results={

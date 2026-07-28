@@ -27,7 +27,10 @@ class PlaylistsScreen(ModalScreen[None]):
         except Exception:
             playlists = []
         for p in playlists:
-            table.add_row(p["name"], p.get("owner") or "-", key=p["id"])
+            try:
+                table.add_row(p["name"], p.get("owner") or "-", key=p["id"])
+            except Exception:
+                continue
         table.focus()
 
     def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:

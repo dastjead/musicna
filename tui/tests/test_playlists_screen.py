@@ -56,6 +56,24 @@ async def test_enter_plays_selected_playlist_and_dismisses():
 
 
 @pytest.mark.asyncio
+async def test_skips_malformed_playlist_but_shows_valid_ones():
+    """응답 중 일부 항목에 필수 필드(id)가 없어도 크래시하지 않고 정상 항목은 표시해야 한다."""
+    client = _FakeClient(playlists=[
+        {"id": "p1", "name": "Chill", "owner": "Me"},
+        {"name": "Broken"},  # "id" 키가 없음 — 루프 도중 KeyError 유발
+        {"id": "p2", "name": "Focus", "owner": "You"},
+    ])
+    app = _HostApp(client)
+    async with app.run_test() as pilot:
+        await pilot.app.push_screen(PlaylistsScreen(client))
+        await pilot.pause()
+        table = pilot.app.screen.query_one(DataTable)
+        assert table.row_count == 2
+        assert table.get_row_at(0)[0] == "Chill"
+        assert table.get_row_at(1)[0] == "Focus"
+
+
+@pytest.mark.asyncio
 async def test_escape_dismisses_without_playing():
     client = _FakeClient(playlists=[{"id": "p1", "name": "Chill", "owner": "Me"}])
     app = _HostApp(client)

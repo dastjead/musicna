@@ -64,6 +64,22 @@ async def test_shows_error_row_when_fetch_fails():
 
 
 @pytest.mark.asyncio
+async def test_shows_error_row_when_track_missing_id_field():
+    """응답은 왔지만 개별 트랙에 필수 필드(id)가 없으면 KeyError로 죽지 않고 폴백 행을 보여야 한다."""
+    malformed_tracks = [
+        {"track": {"title": "Song A", "artist": "Artist A"},
+         "bpm": 120.0, "key": "C", "mode": "major", "moods": []},
+        # "id" 키가 없음 — 루프 도중 KeyError 유발
+    ]
+    app = _BrowserApp(_FakeClient(tracks=malformed_tracks))
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        table = pilot.app.query_one(LibraryBrowserWidget)
+        assert table.row_count == 1
+        assert "api 연결" in table.get_row_at(0)[0]
+
+
+@pytest.mark.asyncio
 async def test_cursor_type_is_row():
     app = _BrowserApp(_FakeClient(tracks=[]))
     async with app.run_test() as pilot:
