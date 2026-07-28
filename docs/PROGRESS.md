@@ -6,19 +6,19 @@
 
 ## 현재 상태
 
-- **현재 Phase**: **Phase 0~7 전체 마일스톤 실기기 검증 통과**. **Phase 8.5(중앙 배포 인프라) 구현·최종 리뷰까지 완료**(Task 1~7 + 최종 전체 브랜치 리뷰, subagent-driven-development로 실행, 2026-07-26) — Tailscale+launchd 상시 배포, 원격 오디오 인제스트 엔드포인트, TUI 상시 api 접속 전환까지 반영. 최종 리뷰에서 이벤트 루프 블로킹·dedup 충돌 버그를 fix wave로 수정했고, 새로 발견된 원격 인제스트 동시성 이슈 1건은 **Phase 10 착수 전 lock 추가를 선행 조건**으로 park. 아래 두 실기기 검증 항목은 백로그로 이월(다음 할 일 참조). **Phase 3 확장 "코드 진행 추상화 구조"도 구현·최종 리뷰까지 완료**(브랜치 `feature-chord-structure-abstraction`, 2026-07-27, 상세는 아래 작업 로그). **Phase 4 확장 "트랙 저장·보존 정책"도 구현·리뷰까지 완료**(브랜치 `feature-track-storage-retention`, 2026-07-27, Task 1~4 전부 반영). Phase 8(TUI 검색·플레이리스트·실시간뷰/라이브러리)은 여전히 미착수
+- **현재 Phase**: **Phase 0~7 전체 마일스톤 실기기 검증 통과**. **Phase 8.5(중앙 배포 인프라) 구현·최종 리뷰까지 완료**(Task 1~7 + 최종 전체 브랜치 리뷰, subagent-driven-development로 실행, 2026-07-26) — Tailscale+launchd 상시 배포, 원격 오디오 인제스트 엔드포인트, TUI 상시 api 접속 전환까지 반영. 최종 리뷰에서 이벤트 루프 블로킹·dedup 충돌 버그를 fix wave로 수정했고, 새로 발견된 원격 인제스트 동시성 이슈 1건은 **Phase 10 착수 전 lock 추가를 선행 조건**으로 park. 아래 두 실기기 검증 항목은 백로그로 이월(다음 할 일 참조). **Phase 3 확장 "코드 진행 추상화 구조"도 구현·최종 리뷰까지 완료**(브랜치 `feature-chord-structure-abstraction`, 2026-07-27, 상세는 아래 작업 로그). **Phase 4 확장 "트랙 저장·보존 정책"도 구현·리뷰까지 완료**(브랜치 `feature-track-storage-retention`, 2026-07-27, Task 1~4 전부 반영). **Phase 8(TUI 검색·플레이리스트·실시간뷰/라이브러리)도 구현·리뷰까지 완료**(브랜치 `phase-8-tui-parity`, 2026-07-28, Task 1~9 전부 반영, 워크스페이스 225 passed·1 skipped) — `main` 병합 및 아래 macOS 실기기 마일스톤 검증은 남음
 - **작업 브랜치**: `main`에 Phase 0~8.5 + 코드 진행 추상화 구조 + "트랙 저장·보존 정책"(Task 1~4) 전부 병합 완료(2026-07-27, 브랜치 `feature-track-storage-retention`은 병합 후 로컬·원격 삭제됨). 이후로는 Phase(또는 기능) 단위 전용 브랜치에서 작업 → 완료 시 `main` 병합 방식(CLAUDE.md 참조). 설계·계획 문서는 그대로 유지: [2026-07-27-track-storage-retention-design.md](superpowers/specs/2026-07-27-track-storage-retention-design.md), [2026-07-27-track-storage-retention.md](superpowers/plans/2026-07-27-track-storage-retention.md)
 - **분담**: `capture-macos/`·`api/session/`은 macOS 로컬 담당, 원격은 `core/`·문서 담당. 작업 전 반드시 pull
 - **다음 할 일 (macOS)**: ① **[백로그]** `MUSICNA_API_URL`을 Tailscale 주소로 지정해 `uv run musicna-tui`가 원격 api에 정상 접속·재생 제어되는지 확인(Phase 8.5 Task 7 Step 1, 2026-07-26 세션에서 시간 관계상 미확인) ② **[백로그]** Mac mini 실제 재부팅 후 `launchd`가 api를 자동 복구하는지 확인(Task 7 Step 3 — 자동 로그인 설정 자체도 이 테스트로 함께 검증) ③ 정상 레벨 곡 추가 캡처·축적. **주의**: 기본 오디오 출력 장치가 HDMI 등 볼륨 API 미지원 장치면 `--system-audio` 캡처가 조용히 실패한다 — 캡처 전 `SwitchAudioSource -c -t output`으로 확인, 필요시 내장 스피커로 전환(아래 Phase 7 기록 참조)
-- **다음 할 일 (원격)**: Phase 8(TUI 기능 동등화) 착수, 또는 Alembic 마이그레이션 도입
+- **다음 할 일 (원격)**: Phase 8은 구현·리뷰 완료, `main` 병합 대기(브랜치 `phase-8-tui-parity` → macOS 실기기 마일스톤 검증 후 병합 권장). 병합 후에는 Alembic 마이그레이션 도입 등 진행
 
 ### 다음 세션 재개 체크리스트 (이 머신 또는 새 머신)
 
 1. `git pull` — 원격이 이 문서보다 앞서 있을 수 있음(원격 담당은 `core/`·문서·Phase 8)
 2. `uv sync --all-packages --extra transcribe --extra analyze --extra mood` — **주의**: extras 없이 `uv sync`/`uv run pytest`를 여러 번 반복하면 이 명령으로 깔린 ML 스택(torch/natten/setuptools/cmake/ninja)이 조용히 제거된다(아래 "환경 이슈" 참조) — Phase 3~7 관련 작업 전엔 항상 이 커맨드로 먼저 확인
-3. `uv run pytest core/tests api/tests tui/tests` → 195 passed 기대(2026-07-27 코드 진행 추상화 구조 완료 기준 최신 수치, Phase 8 진행되면 늘어남)
+3. `uv run pytest core/tests api/tests tui/tests` → 225 passed, 1 skipped 기대(2026-07-28 Phase 8 TUI 기능 동등화 구현 완료 기준 최신 수치)
 4. macOS에서 spotify_player/TUI 작업 시: `export PATH="$HOME/.cargo/bin:$PATH"`(이미 `.zshrc`에 추가돼 있으면 새 셸에서 자동), `spotify_player --version`으로 daemon feature 포함 여부 확인(`spotify_player --help`에 `-d`/`--daemon`이 보여야 함 — 안 보이면 아래 "spotify_player 설치 절차"부터 재수행)
-5. Phase 8 착수 시 참고 문서: 설계는 이미 [docs/superpowers/specs/2026-07-26-tui-player-orchestration-design.md](superpowers/specs/2026-07-26-tui-player-orchestration-design.md)에 있고(Phase 7·8 함께 설계됨), Phase 8용 새 구현 계획만 `superpowers:writing-plans`로 작성하면 됨(검색·플레이리스트를 `player.py`에 CLI 래퍼로 추가 → `/player/search`,`/player/playlists` 라우트 → TUI에 실시간뷰·라이브러리 위젯 추가, 웹의 `live.js`/`app.js` 패턴 재사용)
+5. Phase 8은 구현·리뷰까지 완료(2026-07-28, 브랜치 `phase-8-tui-parity`, Task 1~9). 설계는 [docs/superpowers/specs/2026-07-26-tui-player-orchestration-design.md](superpowers/specs/2026-07-26-tui-player-orchestration-design.md)(Phase 7·8 함께 설계됨) 참조. 남은 건 `main` 병합과 macOS 실기기 마일스톤 검증뿐(위 "다음 할 일" 참조)
 6. **Phase 8.5는 구현 완료**(2026-07-26, Task 1~7) — 설계는 [docs/superpowers/specs/2026-07-26-central-deployment-ios-player-design.md](superpowers/specs/2026-07-26-central-deployment-ios-player-design.md), 구현 계획·진행 기록은 [docs/superpowers/plans/2026-07-26-phase-8-5-central-deployment.md](superpowers/plans/2026-07-26-phase-8-5-central-deployment.md), 운영 매뉴얼은 [deploy/macos/README.md](../deploy/macos/README.md) 참조. 남은 건 위 "다음 할 일 (macOS)"의 백로그 2건(TUI 원격 접속·재부팅 복구 확인)뿐. Phase 10(iOS 앱) 착수 시에도 같은 설계 스펙 참고(iOS 자체 재생·캡처 타당성 조사·논의 과정 포함)
 
 ## Phase 체크리스트
@@ -98,10 +98,11 @@
 - [ ] 검색·플레이리스트는 Phase 8로 이월
 
 ### Phase 8 — TUI 기능 동등화
-- [ ] 검색·플레이리스트(`/player/search`, `/player/playlists`)
-- [ ] 실시간 분석 뷰(코드·피아노 롤)를 TUI에 추가 (`/ws/live` 재사용)
-- [ ] 라이브러리 브라우저를 TUI에 추가 (`/tracks` 재사용)
+- [x] 검색·플레이리스트(`/player/search`, `/player/playlists`) — `api/player.py` search/list_playlists/play_playlist + 라우트 3개(커밋 `7ce7162`·`1524f0d`), TUI `ApiClient` 대응 메서드(커밋 `a177cb5`), `SearchScreen`·`PlaylistsScreen`(ModalScreen, 커밋 `712c012`·`8b16888`), `app.py` 조립(`/` 검색·`u` 플레이리스트 바인딩, 커밋 `a8225a2`) — 워크스페이스 225 passed, 1 skipped(2026-07-28 구현·리뷰 완료)
+- [x] 실시간 분석 뷰(코드·피아노 롤)를 TUI에 추가 (`/ws/live` 재사용) — 터미널 제약상 캔버스 피아노 롤 대신 현재 코드·진행 히스토리·울리는 노트 개수로 기능적 동등성 구현 (`LiveAnalysisWidget`, 커밋 `66c0675`)
+- [x] 라이브러리 브라우저를 TUI에 추가 (`/tracks` 재사용) — `DataTable` 기반 표 뷰 (`LibraryBrowserWidget`, 커밋 `d8101f3`)
 - [x] TUI의 "자체 로컬 api 부트스트랩"(Phase 7) 제거 → 상시 중앙 api(Phase 8.5)에 접속만 하는 클라이언트로 전환 (2026-07-26, 커밋 `9d57f78`)
+- [ ] **(macOS)** 마일스톤: TUI에서 검색→플레이리스트 재생, 라이브러리 브라우저 열람, 실시간 분석 뷰 표시가 실제 Spotify 재생·캡처와 함께 정상 동작하는지 실기기 검증(spotify_player search/get key user-playlists CLI 출력이 이 계획의 fixture와 다르면 파서 조정 포함)
 
 ### Phase 8.5 — 중앙 배포 인프라 (신규, 2026-07-26 설계)
 > 설계: [2026-07-26-central-deployment-ios-player-design.md](superpowers/specs/2026-07-26-central-deployment-ios-player-design.md). 구현 계획: [2026-07-26-phase-8-5-central-deployment.md](superpowers/plans/2026-07-26-phase-8-5-central-deployment.md)(7개 Task, subagent-driven-development로 실행 중).
@@ -167,6 +168,7 @@
 | 2026-07-27 | **최종 전체 브랜치 리뷰 Important 발견 수정**: `find_chord_loops`가 기본 패턴이 4회 이상 반복될 때 "긴 패턴이 2회"로 뭉개 보고하고 홀수배(5회 등)에서는 마지막 등장을 통째로 누락시키던 버그. `_is_primitive` 헬퍼를 추가해 원시(더 짧은 주기의 반복이 아닌) 패턴만 루프 후보로 받아들이도록 수정 — 리뷰가 제안한 구현(주기가 길이를 나눠떨어지게 하는 경우만 배제)을 그대로 적용했더니 새 회귀 테스트가 실패, 원인 추적 결과 나눠떨어지지 않는 "부분 반복"(예: 길이 7 안의 주기 4)도 같은 버그를 재현함을 확인 → 나눗셈 조건 없이 일반적인 문자열 주기 정의로 교체해 해결. 회귀 테스트 2건 추가(4회·5회 반복 케이스) | `core/tests/test_chord_structure.py` 20 passed(18+2), 워크스페이스 183→185 passed. 기대값은 그대로 두고 구현만 검증해 원인 확정 — 리뷰가 제안한 헬퍼 로직 자체의 사각지대를 실측으로 발견한 사례 |
 | 2026-07-27 | 트랙 저장·보존 정책 구현 — WAV 분석 성공 직후 삭제(`api/batch.py`), `AnalysisResult.id` 노출 + `GET /tracks/{id}`·`GET /tracks/{id}/midi` 신설(`api/main.py`, `core/store/repository.py`) | 신규 의존성 없음. `--force` 재분석 시 오디오 기반 재검증이 안 되는 트레이드오프는 이미 인지·수용됨(설계 스펙 참조). 워크스페이스 185→195 passed |
 | 2026-07-28 | **트랙 저장·보존 정책 최종 전체 브랜치 리뷰(opus) → fix wave → main 병합**: Task 1~4를 subagent-driven-development로 실행(각 Task 리뷰 통과, Task 2 fix round 1에서 브리프 범위 밖 문서 커밋+push를 되돌린 사례 1건). 최종 리뷰는 Critical/Important 0건, Minor 4건 중 사용자 선택으로 2건(WAV unlink 실패 시 오분류 버그, PROGRESS.md 수치 불일치)을 fix wave로 수정 → 스코프된 재리뷰 통과 → `main`으로 fast-forward 병합, `feature-track-storage-retention` 브랜치 로컬·원격 삭제 | `batch.py`의 `wav_path.unlink()`를 `counts["analyzed"] += 1` 뒤로 옮기고 별도 `try/except OSError`로 격리 — 삭제 실패가 이미 성공한 저장을 실패로 오분류하지 않게 함. 워크스페이스 최종 196 passed |
+| 2026-07-28 | **Phase 8 구현** — `api/player.py`에 search/list_playlists/play_playlist + 3개 라우트, `tui/client.py`에 대응 메서드, `tui/widgets/`에 LibraryBrowserWidget(DataTable)·LiveAnalysisWidget(/ws/live 구독)·PlaylistsScreen·SearchScreen(둘 다 ModalScreen) 신설, `app.py`에 조립(`/` 검색, `u` 플레이리스트 바인딩) | search/get key user-playlists CLI 문법·JSON 스키마는 aome510/spotify-player 소스 직접 확인(실측 아님) — macOS 실기기에서 재확인 필요. 트랙 단건 재생은 설계 범위 밖(플레이리스트만 재생 가능). 워크스페이스 196→225 passed, 1 skipped. Task별 커밋(오래된 순): `7ce7162`(Task1)·`1524f0d`(Task2)·`a177cb5`(Task3)·`d8101f3`(Task4)·`66c0675`(Task5)·`712c012`(Task6)·`8b16888`(Task7)·`a8225a2`(Task8) |
 
 ## 실기기 검증 상세 기록 — 2026-07-25 (macOS)
 
