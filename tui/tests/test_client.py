@@ -100,3 +100,47 @@ def test_http_error_raises():
 def test_base_url_property_reflects_constructor_arg():
     client = ApiClient(base_url="http://mac-mini.tailnet.ts.net:8000")
     assert client.base_url == "http://mac-mini.tailnet.ts.net:8000"
+
+
+def test_tracks_returns_list():
+    def handler(request):
+        assert request.url.path == "/tracks"
+        return httpx.Response(200, json=[{"id": 1, "track": {"title": "X"}}])
+    tracks = _client_with(handler).tracks()
+    assert tracks == [{"id": 1, "track": {"title": "X"}}]
+
+
+def test_player_search_sends_query_param():
+    def handler(request):
+        assert request.url.path == "/player/search"
+        assert request.url.params["query"] == "test song"
+        return httpx.Response(200, json={"tracks": [], "artists": [], "albums": [], "playlists": []})
+    result = _client_with(handler).player_search("test song")
+    assert result == {"tracks": [], "artists": [], "albums": [], "playlists": []}
+
+
+def test_player_playlists_returns_list():
+    def handler(request):
+        assert request.url.path == "/player/playlists"
+        return httpx.Response(200, json=[{"id": "p1", "name": "X", "owner": None, "collaborative": False}])
+    playlists = _client_with(handler).player_playlists()
+    assert playlists[0]["id"] == "p1"
+
+
+def test_player_play_playlist_posts_to_correct_path():
+    calls = []
+    def handler(request):
+        calls.append(request.url.path)
+        return httpx.Response(200, json={"status": "ok"})
+    _client_with(handler).player_play_playlist("p1")
+    assert calls == ["/player/playlists/p1/play"]
+
+
+def test_live_ws_url_derived_from_http_base_url():
+    client = ApiClient(base_url="http://mac-mini.tailnet.ts.net:8000")
+    assert client.live_ws_url == "ws://mac-mini.tailnet.ts.net:8000/ws/live"
+
+
+def test_live_ws_url_uses_wss_for_https_base_url():
+    client = ApiClient(base_url="https://mac-mini.tailnet.ts.net:8000")
+    assert client.live_ws_url == "wss://mac-mini.tailnet.ts.net:8000/ws/live"

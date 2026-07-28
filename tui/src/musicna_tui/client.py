@@ -54,6 +54,30 @@ class ApiClient:
         r.raise_for_status()
         return r.json()
 
+    def tracks(self) -> list[dict]:
+        r = self._http.get("/tracks")
+        r.raise_for_status()
+        return r.json()
+
+    def player_search(self, query: str) -> dict:
+        r = self._http.get("/player/search", params={"query": query})
+        r.raise_for_status()
+        return r.json()
+
+    def player_playlists(self) -> list[dict]:
+        r = self._http.get("/player/playlists")
+        r.raise_for_status()
+        return r.json()
+
+    def player_play_playlist(self, playlist_id: str) -> None:
+        self._http.post(f"/player/playlists/{playlist_id}/play").raise_for_status()
+
+    @property
+    def live_ws_url(self) -> str:
+        ws_scheme = "wss" if self.base_url.startswith("https://") else "ws"
+        rest = self.base_url.split("://", 1)[1].rstrip("/")
+        return f"{ws_scheme}://{rest}/ws/live"
+
     @property
     def base_url(self) -> str:
         return str(self._http.base_url)
