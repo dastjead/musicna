@@ -61,4 +61,23 @@ final class LiveAnalysisStoreTests: XCTestCase {
 
         XCTAssertEqual(store.activeNoteCount, 1)
     }
+
+    func testIsConnectedBecomesTrueAfterFirstEvent() async {
+        let messages = [
+            #"{"type": "track_started", "track": {"title": "X", "artist": null, "album": null, "duration_s": null, "captured_at": null}}"#,
+        ]
+        let client = LiveEventClient(
+            url: URL(string: "ws://test/ws/live")!,
+            connect: { _ in FakeWebSocket(messages: messages) },
+            reconnectDelay: .seconds(999)
+        )
+        let store = LiveAnalysisStore(liveEventClient: client)
+
+        XCTAssertFalse(store.isConnected)
+
+        store.start()
+        try? await Task.sleep(for: .milliseconds(50))
+
+        XCTAssertTrue(store.isConnected)
+    }
 }

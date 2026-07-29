@@ -13,11 +13,19 @@ struct MusicnaApp: App {
         let baseURL = URL(string: UserDefaults.standard.string(forKey: "apiBaseURL") ?? "http://127.0.0.1:8000")!
         self.baseURL = baseURL
         let client = APIClient(baseURL: baseURL)
-        _playerStatusStore = StateObject(wrappedValue: PlayerStatusStore(client: client))
-        _liveAnalysisStore = StateObject(wrappedValue: LiveAnalysisStore(
-            liveEventClient: LiveEventClient(url: baseURL.wsLiveURL())
-        ))
+
+        let statusStore = PlayerStatusStore(client: client)
+        let analysisStore = LiveAnalysisStore(liveEventClient: LiveEventClient(url: baseURL.wsLiveURL()))
+        _playerStatusStore = StateObject(wrappedValue: statusStore)
+        _liveAnalysisStore = StateObject(wrappedValue: analysisStore)
         _libraryStore = StateObject(wrappedValue: LibraryStore(client: client))
+
+        // MenuBarExtra의 콘텐츠 뷰는 처음 클릭할 때만 인스턴스화되므로, 폴링/구독을
+        // 뷰 등장까지 미루지 않고 앱 launch 시점(init)에 바로 시작한다.
+        Task { @MainActor in
+            statusStore.start()
+            analysisStore.start()
+        }
     }
 
     var body: some Scene {

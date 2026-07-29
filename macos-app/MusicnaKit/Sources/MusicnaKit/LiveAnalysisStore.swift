@@ -24,6 +24,7 @@ public final class LiveAnalysisStore: ObservableObject {
     }
 
     private func handle(_ event: LiveEvent) {
+        isConnected = true
         switch event {
         case .trackStarted:
             currentChord = nil
