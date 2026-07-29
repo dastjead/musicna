@@ -27,7 +27,8 @@ struct MusicnaApp: App {
                 .environmentObject(liveAnalysisStore)
         }
         WindowGroup(id: "library") {
-            Text("Library") // Task 7이 LibraryWindowView로 교체
+            LibraryWindowView()
+                .environmentObject(libraryStore)
         }
     }
 
