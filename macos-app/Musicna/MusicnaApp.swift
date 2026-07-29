@@ -30,6 +30,9 @@ struct MusicnaApp: App {
             LibraryWindowView()
                 .environmentObject(libraryStore)
         }
+        Settings {
+            PreferencesView()
+        }
     }
 
     private func makeAPIClient() -> APIClient {

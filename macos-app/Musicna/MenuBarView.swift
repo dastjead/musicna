@@ -18,6 +18,9 @@ struct MenuBarView: View {
             Divider()
             Button("라이브러리 열기") { openWindow(id: "library") }
             Button("웹 UI 열기") { NSWorkspace.shared.open(apiClient.baseURLForOpening) }
+            Button("설정...") {
+                NSApp.sendAction(Selector(("showPreferencesWindow:")), to: nil, from: nil)
+            }
         }
         .padding(12)
         .frame(width: 280)
