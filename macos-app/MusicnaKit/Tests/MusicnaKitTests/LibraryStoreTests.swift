@@ -41,4 +41,19 @@ final class LibraryStoreTests: XCTestCase {
         XCTAssertNotNil(store.loadError)
         XCTAssertEqual(store.tracks, [])
     }
+
+    func testRefreshSetsLoadErrorOnNonArrayTopLevelResponse() async {
+        // 최상위 응답이 배열이 아닌 경우(예: 객체) — 원소 단위 skip 대상이 아니라
+        // 명백한 파싱 실패이므로 조용히 빈 라이브러리로 흡수하지 않고 loadError를 세워야 한다.
+        StubURLProtocol.handler = { _ in (200, #"{"not": "an array"}"#.data(using: .utf8)!) }
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [StubURLProtocol.self]
+        let client = APIClient(baseURL: URL(string: "http://test")!, session: URLSession(configuration: config))
+        let store = LibraryStore(client: client)
+
+        await store.refresh()
+
+        XCTAssertNotNil(store.loadError)
+        XCTAssertEqual(store.tracks, [])
+    }
 }
