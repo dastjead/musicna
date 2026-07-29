@@ -70,6 +70,25 @@ def test_end_unknown_session_raises_keyerror(manager):
         manager.end("nope")
 
 
+def test_lock_for_returns_lock_after_start(manager):
+    session_id = manager.start(TrackMeta(title="곡"), sample_rate=16000, channels=1)
+    import asyncio
+
+    assert isinstance(manager.lock_for(session_id), asyncio.Lock)
+
+
+def test_lock_for_unknown_session_raises_keyerror(manager):
+    with pytest.raises(KeyError):
+        manager.lock_for("nope")
+
+
+def test_lock_for_raises_keyerror_after_end(manager):
+    session_id = manager.start(TrackMeta(title="곡"), sample_rate=16000, channels=1)
+    manager.end(session_id)
+    with pytest.raises(KeyError):
+        manager.lock_for(session_id)
+
+
 def test_stereo_downmix_for_transcription(manager):
     session_id = manager.start(TrackMeta(title="곡"), sample_rate=16000, channels=2, chunk_s=1.0)
     stereo = np.zeros(16000 * 2, dtype=np.float32)  # 1초 인터리브 스테레오

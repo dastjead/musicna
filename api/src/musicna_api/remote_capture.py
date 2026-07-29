@@ -7,6 +7,7 @@
 2026-07-26-central-deployment-ios-player-design.md 참조).
 """
 
+import asyncio
 import os
 import re
 import uuid
@@ -127,6 +128,7 @@ class RemoteCaptureManager:
         self.out_dir.mkdir(parents=True, exist_ok=True)
         self._transcribe_chunk = transcribe_chunk or _default_transcribe_chunk
         self._sessions: dict[str, RemoteCaptureSession] = {}
+        self._locks: dict[str, asyncio.Lock] = {}
 
     def start(self, meta: TrackMeta, sample_rate: int, channels: int, chunk_s: float = 5.0) -> str:
         if meta.captured_at is None:
@@ -138,13 +140,19 @@ class RemoteCaptureManager:
         self._sessions[session_id] = RemoteCaptureSession(
             wav_path, meta, sample_rate, channels, self._transcribe_chunk, chunk_s=chunk_s
         )
+        self._locks[session_id] = asyncio.Lock()
         return session_id
+
+    def lock_for(self, session_id: str) -> asyncio.Lock:
+        """session_id별 직렬화 lock. 미지의 session_id면 KeyError(feed/end와 동일 계약)."""
+        return self._locks[session_id]
 
     def feed(self, session_id: str, raw_float32: bytes) -> list[LiveEvent]:
         return self._sessions[session_id].feed(raw_float32)
 
     def end(self, session_id: str) -> Path:
         session = self._sessions.pop(session_id)
+        self._locks.pop(session_id, None)
         session.finalize()
         return session.wav_path
 
@@ -179,9 +187,14 @@ async def start_session(body: RemoteSessionStart) -> RemoteSessionStartResponse:
 async def upload_chunk(session_id: str, request: Request) -> dict[str, int]:
     raw = await request.body()
     try:
-        events = await run_in_threadpool(manager.feed, session_id, raw)
+        lock = manager.lock_for(session_id)
     except KeyError:
         raise HTTPException(status_code=404, detail="unknown session_id") from None
+    async with lock:
+        try:
+            events = await run_in_threadpool(manager.feed, session_id, raw)
+        except KeyError:
+            raise HTTPException(status_code=404, detail="unknown session_id") from None
     for ev in events:
         _publish(ev)
     return {"accepted": len(events)}
@@ -190,8 +203,13 @@ async def upload_chunk(session_id: str, request: Request) -> dict[str, int]:
 @router.post("/sessions/{session_id}/end")
 async def end_session(session_id: str) -> dict[str, str]:
     try:
-        wav_path = manager.end(session_id)
+        lock = manager.lock_for(session_id)
     except KeyError:
         raise HTTPException(status_code=404, detail="unknown session_id") from None
+    async with lock:
+        try:
+            wav_path = manager.end(session_id)
+        except KeyError:
+            raise HTTPException(status_code=404, detail="unknown session_id") from None
     _publish(LiveTrackEnded())
     return {"wav_path": str(wav_path)}
