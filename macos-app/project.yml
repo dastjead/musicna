@@ -1,0 +1,21 @@
+name: Musicna
+options:
+  bundleIdPrefix: com.musicna
+targets:
+  Musicna:
+    type: application
+    platform: macOS
+    deploymentTarget: "13.0"
+    sources:
+      - Musicna
+    dependencies:
+      - package: MusicnaKit
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.musicna.app
+        INFOPLIST_FILE: Musicna/Info.plist
+        CODE_SIGN_ENTITLEMENTS: Musicna/Musicna.entitlements
+        MARKETING_VERSION: "0.1.0"
+packages:
+  MusicnaKit:
+    path: MusicnaKit
