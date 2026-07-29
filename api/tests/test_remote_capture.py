@@ -1,5 +1,6 @@
 """RemoteCaptureManager/RemoteCaptureSession 핵심 로직 — 실 muscriptor 불필요(가짜 transcribe_chunk)."""
 
+import asyncio
 import json
 import wave
 from datetime import datetime, timedelta
@@ -72,8 +73,6 @@ def test_end_unknown_session_raises_keyerror(manager):
 
 def test_lock_for_returns_lock_after_start(manager):
     session_id = manager.start(TrackMeta(title="곡"), sample_rate=16000, channels=1)
-    import asyncio
-
     assert isinstance(manager.lock_for(session_id), asyncio.Lock)
 
 

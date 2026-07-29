@@ -129,7 +129,6 @@ musicna/
 - **1.4B 모델 + 실시간** — 실시간 미리보기는 small(103M) 모델, 배치 확정 분석은 large 모델로 이원화
 - **api 인증 부재** — Phase 8.5는 Tailscale의 네트워크 레벨 신뢰로 대체하고 별도 인증 계층을 만들지 않음(터널 밖 노출 없음이 전제). 공인 인터넷 노출로 전환 시 반드시 인증 추가 필요
 - **iOS 자체 재생·캡처 미검증** — `librespot-golang`(Go) 임베딩이 실제 iOS에서 Spotify Connect 기기로 인식되는지 자체가 스파이크 필요, iOS 백그라운드 정책상 포그라운드 전용으로만 동작 가능(공식 Spotify 앱도 백그라운드 Connect 안정성 이슈가 알려져 있음). 상세는 [Phase 8.5·10 설계 스펙](superpowers/specs/2026-07-26-central-deployment-ios-player-design.md) 참조
-- **원격 인제스트 동시성 미보호(Phase 10 선행 조건)** — Phase 8.5 최종 리뷰(2026-07-26)에서 발견: `remote_capture.py`의 `/remote/audio/sessions/{id}/chunk`가 `run_in_threadpool`로 전사를 오프로드하면서, 같은 `session_id`에 대한 동시 요청이 `RemoteCaptureSession`의 비동기화 상태(WAV writer·pending 버퍼·chord tracker)에서 경합할 수 있게 됨. 현재는 실제 호출자가 없어(iOS 클라이언트 미구현) 영향 없이 park됨 — **Phase 10에서 실제 스트리밍 클라이언트를 붙이기 전에 `session_id`별 lock을 반드시 추가해야 함**(상세: [구현 계획의 "최종 전체 브랜치 리뷰" 절](superpowers/plans/2026-07-26-phase-8-5-central-deployment.md))
 
 ## 검증 방법
 
