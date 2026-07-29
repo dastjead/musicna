@@ -14,6 +14,10 @@ public final class APIClient {
         self.session = session
     }
 
+    /// 웹 UI를 브라우저로 열 때 사용하는 base URL. `baseURL`은 내부 요청 조립용으로 private이라
+    /// 외부(예: `NSWorkspace.shared.open`)에 노출하는 용도로 별도 제공.
+    public var baseURLForOpening: URL { baseURL }
+
     public func health() async -> Bool {
         guard let (_, response) = try? await session.data(from: baseURL.appendingPathComponent("health")),
               let http = response as? HTTPURLResponse
