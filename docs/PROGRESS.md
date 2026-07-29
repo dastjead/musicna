@@ -6,20 +6,29 @@
 
 ## 현재 상태
 
-- **현재 Phase**: **Phase 0~7 전체 마일스톤 실기기 검증 통과**. **Phase 8.5(중앙 배포 인프라) 구현·최종 리뷰까지 완료**(Task 1~7 + 최종 전체 브랜치 리뷰, subagent-driven-development로 실행, 2026-07-26) — Tailscale+launchd 상시 배포, 원격 오디오 인제스트 엔드포인트, TUI 상시 api 접속 전환까지 반영. 최종 리뷰에서 이벤트 루프 블로킹·dedup 충돌 버그를 fix wave로 수정했고, 새로 발견된 원격 인제스트 동시성 이슈 1건은 **Phase 10 착수 전 lock 추가를 선행 조건**으로 park했다가 2026-07-28에 해소(session_id별 asyncio.Lock, 상세는 아래 Phase 10 체크리스트·작업 로그). 아래 두 실기기 검증 항목은 백로그로 이월(다음 할 일 참조). **Phase 3 확장 "코드 진행 추상화 구조"도 구현·최종 리뷰까지 완료**(브랜치 `feature-chord-structure-abstraction`, 2026-07-27, 상세는 아래 작업 로그). **Phase 4 확장 "트랙 저장·보존 정책"도 구현·리뷰까지 완료**(브랜치 `feature-track-storage-retention`, 2026-07-27, Task 1~4 전부 반영). **Phase 8(TUI 검색·플레이리스트·실시간뷰/라이브러리)도 구현·리뷰·main 병합까지 완료**(브랜치 `phase-8-tui-parity`, 2026-07-28, Task 1~9 + 최종 브랜치 리뷰 fix wave 1건, 워크스페이스 228 passed·1 skipped) — 아래 macOS 실기기 마일스톤 검증만 남음
-- **작업 브랜치**: `main`에 Phase 0~8.5 + 코드 진행 추상화 구조 + "트랙 저장·보존 정책" + Phase 8(TUI 기능 동등화) 전부 병합 완료(2026-07-28, 브랜치 `feature-track-storage-retention`·`phase-8-tui-parity`는 병합 후 로컬·원격 삭제됨). 이후로는 Phase(또는 기능) 단위 전용 브랜치에서 작업 → 완료 시 `main` 병합 방식(CLAUDE.md 참조)
-- **분담**: `capture-macos/`·`api/session/`은 macOS 로컬 담당, 원격은 `core/`·문서 담당. 작업 전 반드시 pull
-- **다음 할 일 (macOS)**: ① **[백로그]** `MUSICNA_API_URL`을 Tailscale 주소로 지정해 `uv run musicna-tui`가 원격 api에 정상 접속·재생 제어되는지 확인(Phase 8.5 Task 7 Step 1, 2026-07-26 세션에서 시간 관계상 미확인) ② **[백로그]** Mac mini 실제 재부팅 후 `launchd`가 api를 자동 복구하는지 확인(Task 7 Step 3 — 자동 로그인 설정 자체도 이 테스트로 함께 검증) ③ **[신규]** Phase 8 마일스톤 검증: TUI에서 검색(`/`)→플레이리스트 재생, 라이브러리 브라우저 열람, 실시간 분석 뷰가 실제 Spotify 재생·캡처와 함께 정상 동작하는지 확인 — `spotify_player search "..."`/`get key user-playlists` 실제 CLI 출력을 이 계획의 fixture와 대조(GitHub 소스만으로 도출한 것이라 macOS 미검증)하고 다르면 `api/player.py`의 파서 조정 ④ 정상 레벨 곡 추가 캡처·축적. **주의**: 기본 오디오 출력 장치가 HDMI 등 볼륨 API 미지원 장치면 `--system-audio` 캡처가 조용히 실패한다 — 캡처 전 `SwitchAudioSource -c -t output`으로 확인, 필요시 내장 스피커로 전환(아래 Phase 7 기록 참조)
-- **다음 할 일 (원격)**: Alembic 마이그레이션 도입, 또는 Phase 9(macOS 네이티브 앱) 착수
+- **현재 Phase**: Phase 0~8.5·"코드 진행 추상화 구조"·"트랙 저장·보존 정책"·Phase 8(TUI 기능 동등화)·Phase 10 선행조건(remote_capture 동시성 lock)까지 전부 `main`에 병합 완료(2026-07-28). **Phase 9(macOS 네이티브 앱)는 설계·계획까지 작성 완료, 구현은 미착수** — 브랜치 `phase-9-macos-native-app`(설계 스펙 커밋 `49c3f38`, 계획 커밋 `10e39e8`, 둘 다 push됨), 다음 세션은 여기서 바로 Task 1 구현부터 이어가면 됨(아래 "Phase 9 세션 재개" 절 참조)
+- **⚠️ 환경 정정(2026-07-29 확인, 중요)**: 이 세션이 작업해온 머신은 "원격/Linux 컨테이너"가 아니라 **이 프로젝트의 실제 macOS 개발 머신(Mac mini, hostname `Mac`, macOS 26.5)**이다 — `spotify_player`(`~/.cargo/bin`)·`Tailscale.app`·`launchd`의 `com.musicna.api`·실제 캡처 데이터(`data/`)가 전부 이 머신에 있음을 직접 확인했다. 이전 세션 기록들이 "macOS 전용이라 이 환경에서 불가능"이라고 적어둔 백로그 항목(아래 "다음 할 일 (macOS)" 대부분) 상당수는 **실제로는 이 세션에서 바로 시도 가능하다** — 유일한 예외는 전체 Xcode.app 미설치(Command Line Tools만 있음, `xcodebuild`가 "requires Xcode" 에러)로, Phase 9의 Xcode 프로젝트 관련 Task(5~8)만 이것부터 선행돼야 한다. 다음 세션 시작 시 이 항목들을 "macOS 실기기 필요라 다음으로 미룬다"고 성급히 결론 내리지 말고 먼저 직접 시도해볼 것
+- **작업 브랜치**: `main`은 위 병합 내역까지 최신. `phase-9-macos-native-app`이 유일하게 진행 중인 미병합 브랜치(문서 커밋만 있음, 코드 없음)
+- **분담**: `capture-macos/`·`api/session/`은 macOS 로컬 담당, 원격은 `core/`·문서 담당 — 단, 위 환경 정정에 따라 이 구분 자체가 최근엔 느슨해짐(둘 다 같은 머신에서 진행 중)
+- **다음 할 일 (macOS, 위 환경 정정 감안하고 재검토할 것)**: ① Phase 9 구현 이어가기(아래 "Phase 9 세션 재개" 절) ② `MUSICNA_API_URL`을 Tailscale 주소로 지정해 `uv run musicna-tui`가 원격 api에 정상 접속·재생 제어되는지 확인(Phase 8.5 Task 7 Step 1) ③ Mac mini 실제 재부팅 후 `launchd`가 api를 자동 복구하는지 확인 ④ Phase 8 마일스톤 검증: TUI에서 검색(`/`)→플레이리스트 재생, 라이브러리 브라우저 열람, 실시간 분석 뷰가 실제 Spotify 재생·캡처와 함께 정상 동작하는지 확인 — `spotify_player search "..."`/`get key user-playlists` 실제 CLI 출력을 계획의 fixture와 대조(GitHub 소스만으로 도출한 것이라 미검증)하고 다르면 `api/player.py`의 파서 조정 ⑤ 정상 레벨 곡 추가 캡처·축적. **주의**: 기본 오디오 출력 장치가 HDMI 등 볼륨 API 미지원 장치면 `--system-audio` 캡처가 조용히 실패한다 — 캡처 전 `SwitchAudioSource -c -t output`으로 확인, 필요시 내장 스피커로 전환(아래 Phase 7 기록 참조)
+- **다음 할 일 (원격 전용 작업이 필요하다면)**: Alembic 마이그레이션 도입
 
-### 다음 세션 재개 체크리스트 (이 머신 또는 새 머신)
+### Phase 9 세션 재개 (2026-07-29에 중단, 다음 세션은 여기서 이어감)
 
-1. `git pull` — 원격이 이 문서보다 앞서 있을 수 있음(원격 담당은 `core/`·문서·Phase 8)
+1. `git fetch && git checkout phase-9-macos-native-app`(또는 `git pull` — 이미 이 브랜치에 있다면)
+2. 설계: [2026-07-29-phase-9-macos-native-app-design.md](superpowers/specs/2026-07-29-phase-9-macos-native-app-design.md), 계획: [2026-07-29-phase-9-macos-native-app.md](superpowers/plans/2026-07-29-phase-9-macos-native-app.md)(Task 1~9) — 둘 다 작성·커밋·push 완료, **코드 구현은 0%**
+3. **Task 1~4**(`MusicnaKit` Swift 패키지: Models·APIClient·LiveEventClient·3개 ObservableObject 스토어)는 **Xcode 없이 지금 바로 시작 가능** — `swift build`/`swift test`만 있으면 됨(이 머신에 Swift 6.3.2 툴체인 확인됨)
+4. **Task 5~8**(Xcode 프로젝트·메뉴바 UI·라이브러리 창·설정 화면)은 **전체 Xcode.app 설치가 선행 조건** — 이 머신엔 Command Line Tools만 있고 Xcode.app이 없어 `xcodebuild`가 안 됨(App Store에서 설치, 사용자 상호작용 필요·자동화 불가). Task 5 착수 전 `xcodebuild -version`으로 먼저 확인할 것
+5. 실행 방식은 계획 문서 하단에서 사용자에게 미확인 상태(subagent-driven-development 권장, 아직 미선택) — 세션 재개 시 다시 확인할 것
+6. 계획 작성 중 발견한 것: `LibraryStore`의 "손상된 트랙 항목 개별 skip" 요구사항이 Swift `JSONDecoder`의 배열 통짜 디코딩 기본 동작과 안 맞을 수 있음 — Task 4 Step 7에 대안 구현 경로(raw 파싱 후 항목별 개별 디코딩)를 미리 적어뒀으니, 실제로 막히면 그쪽 참고
+
+### 다음 세션 재개 체크리스트 (일반)
+
+1. `git pull` — 원격이 이 문서보다 앞서 있을 수 있음
 2. `uv sync --all-packages --extra transcribe --extra analyze --extra mood` — **주의**: extras 없이 `uv sync`/`uv run pytest`를 여러 번 반복하면 이 명령으로 깔린 ML 스택(torch/natten/setuptools/cmake/ninja)이 조용히 제거된다(아래 "환경 이슈" 참조) — Phase 3~7 관련 작업 전엔 항상 이 커맨드로 먼저 확인
-3. `uv run pytest core/tests api/tests tui/tests` → 225 passed, 1 skipped 기대(2026-07-28 Phase 8 TUI 기능 동등화 구현 완료 기준 최신 수치)
+3. `uv run pytest core/tests api/tests tui/tests` → 232 passed, 1 skipped 기대(2026-07-28 Phase 10 선행조건 완료 기준 최신 수치, `main` 기준)
 4. macOS에서 spotify_player/TUI 작업 시: `export PATH="$HOME/.cargo/bin:$PATH"`(이미 `.zshrc`에 추가돼 있으면 새 셸에서 자동), `spotify_player --version`으로 daemon feature 포함 여부 확인(`spotify_player --help`에 `-d`/`--daemon`이 보여야 함 — 안 보이면 아래 "spotify_player 설치 절차"부터 재수행)
-5. Phase 8은 구현·리뷰까지 완료(2026-07-28, 브랜치 `phase-8-tui-parity`, Task 1~9). 설계는 [docs/superpowers/specs/2026-07-26-tui-player-orchestration-design.md](superpowers/specs/2026-07-26-tui-player-orchestration-design.md)(Phase 7·8 함께 설계됨) 참조. 남은 건 `main` 병합과 macOS 실기기 마일스톤 검증뿐(위 "다음 할 일" 참조)
-6. **Phase 8.5는 구현 완료**(2026-07-26, Task 1~7) — 설계는 [docs/superpowers/specs/2026-07-26-central-deployment-ios-player-design.md](superpowers/specs/2026-07-26-central-deployment-ios-player-design.md), 구현 계획·진행 기록은 [docs/superpowers/plans/2026-07-26-phase-8-5-central-deployment.md](superpowers/plans/2026-07-26-phase-8-5-central-deployment.md), 운영 매뉴얼은 [deploy/macos/README.md](../deploy/macos/README.md) 참조. 남은 건 위 "다음 할 일 (macOS)"의 백로그 2건(TUI 원격 접속·재부팅 복구 확인)뿐. Phase 10(iOS 앱) 착수 시에도 같은 설계 스펙 참고(iOS 자체 재생·캡처 타당성 조사·논의 과정 포함)
+5. Phase 8·8.5는 구현·리뷰·`main` 병합까지 완료 — 남은 건 "다음 할 일 (macOS)"의 실기기 마일스톤 검증뿐. Phase 9는 위 "Phase 9 세션 재개" 절 참조
 
 ## Phase 체크리스트
 
@@ -124,6 +133,7 @@
 - [ ] **(macOS)** 마일스톤: 집 밖에서 Tailscale로 api 접속 → 라이브러리 조회(✅ 확인)·**재생 원격제어(TUI, 백로그)** 확인
 
 ### Phase 9 — macOS 네이티브 앱
+> 설계: [2026-07-29-phase-9-macos-native-app-design.md](superpowers/specs/2026-07-29-phase-9-macos-native-app-design.md). 구현 계획: [2026-07-29-phase-9-macos-native-app.md](superpowers/plans/2026-07-29-phase-9-macos-native-app.md)(Task 1~9). 둘 다 브랜치 `phase-9-macos-native-app`에 작성·push 완료, 구현은 미착수 — 세션 재개 방법은 위 "Phase 9 세션 재개" 절 참조.
 - [ ] `api/`만 호출하는 macOS 네이티브 앱(SwiftUI), Phase 8.5의 상시 중앙 api에 접속
 - [ ] 같은 기능 동등화·단계별 실기기 검증 패턴 적용
 
@@ -172,6 +182,7 @@
 | 2026-07-28 | **Phase 8 구현** — `api/player.py`에 search/list_playlists/play_playlist + 3개 라우트, `tui/client.py`에 대응 메서드, `tui/widgets/`에 LibraryBrowserWidget(DataTable)·LiveAnalysisWidget(/ws/live 구독)·PlaylistsScreen·SearchScreen(둘 다 ModalScreen) 신설, `app.py`에 조립(`/` 검색, `u` 플레이리스트 바인딩) | search/get key user-playlists CLI 문법·JSON 스키마는 aome510/spotify-player 소스 직접 확인(실측 아님) — macOS 실기기에서 재확인 필요. 트랙 단건 재생은 설계 범위 밖(플레이리스트만 재생 가능). 워크스페이스 196→225 passed, 1 skipped. Task별 커밋(오래된 순): `7ce7162`(Task1)·`1524f0d`(Task2)·`a177cb5`(Task3)·`d8101f3`(Task4)·`66c0675`(Task5)·`712c012`(Task6)·`8b16888`(Task7)·`a8225a2`(Task8) |
 | 2026-07-28 | **Phase 8 최종 전체 브랜치 리뷰(opus) → fix wave → main 병합**: Task 1~9를 subagent-driven-development로 실행하며 계획 브리프 자체의 실측 버그 3건을 구현자들이 발견·수정(재연결 busy loop, Textual 모달 쿼리 스코프, 스테일 서버 응답으로 인한 테스트 크래시 — 상세는 위 Phase 8 체크리스트 참조). 최종 리뷰 Important 2건 중 1건(위젯 3종 KeyError 위험)을 fix wave로 수정(커밋 `1918a09`) → 재리뷰 통과 → `main` fast-forward 병합, `phase-8-tui-parity` 브랜치 삭제. 나머지 1건(이벤트 루프 경합)은 기존 패턴과 일치해 park | 워크스페이스 최종 228 passed, 1 skipped. "계획 문서 자체에 버그가 있을 수 있다"는 전제로 각 구현자에게 "브리프를 맹신하지 말고 실제로 실행해 확인하라"고 명시적으로 지시한 것이 반복적으로 유효했던 세션 |
 | 2026-07-28 | **Phase 10 선행 조건 해소** — `remote_capture.py`에 `session_id`별 `asyncio.Lock` 추가(브랜치 `fix-remote-capture-session-lock`, TDD로 직접 구현·`superpowers:requesting-code-review`로 리뷰). 레이스를 실제로 재현하는 회귀 테스트(수정 전 코드로 실패 확인 후 수정 — 리뷰어가 base 커밋에 대해 독립 재검증)로 검증. 코드 리뷰에서 Important 1건(문서 미갱신) 발견해 이 커밋에 함께 반영 | Phase 8.5 최종 리뷰(2026-07-26)에서 park됐던 이슈. 워크스페이스 232 passed, 1 skipped. PLAN.md 리스크 절의 해당 항목 제거 |
+| 2026-07-29 | **Phase 9(macOS 네이티브 앱) 브레인스토밍·설계·계획 작성**: 메뉴바(재생 제어·세션 상태·실시간 코드)+별도 라이브러리 창, 네트워킹·모델·스토어를 순수 Swift 패키지 `MusicnaKit`으로 분리해 Phase 10과 공유하기로 결정. 설계 스펙·구현 계획(Task 1~9) 작성 → 브랜치 `phase-9-macos-native-app`에 커밋·push. **세션 도중 중요 정정 발견**: 작업 중이던 머신이 "원격/Linux"가 아니라 이 프로젝트의 실제 Mac mini임을 확인(`spotify_player`·`Tailscale.app`·`launchd` 서비스·실제 캡처 데이터 전부 존재) — 유일한 예외는 전체 Xcode.app 미설치(Command Line Tools만 있음). 사용자 요청으로 이 지점에서 세션 종료(구현 미착수) | 코드 구현 0%, 문서만 존재. 다음 세션은 PROGRESS.md 상단 "Phase 9 세션 재개" 절부터 이어갈 것. 자동 메모리에도 환경 정정 사실을 기록해둠(project 메모리) |
 
 ## 실기기 검증 상세 기록 — 2026-07-25 (macOS)
 
