@@ -44,6 +44,13 @@ public final class APIClient {
         try decoder.decode([AnalysisResult].self, from: try await get(path: "tracks"))
     }
 
+    /// `/tracks`의 가공되지 않은 응답 바이트를 반환한다. `tracks()`는 `JSONDecoder`가 배열
+    /// 원소 하나라도 실패하면 배열 전체 디코딩을 실패시키므로, 항목 단위로 관용적인 디코딩이
+    /// 필요한 호출자(`LibraryStore`)는 이 메서드로 원본을 받아 직접 항목별 디코딩을 수행한다.
+    public func tracksRaw() async throws -> Data {
+        try await get(path: "tracks")
+    }
+
     private func get(path: String) async throws -> Data {
         try await request(path: path, method: "GET")
     }
