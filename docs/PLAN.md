@@ -61,7 +61,7 @@
 | 구조/비트 | allin1 (+ madmom) | 검증된 구간 라벨링, macOS 지원 |
 | 코드 | music21 + chorder (MIDI) / madmom (오디오) | 교차 검증으로 정확도 확보 |
 | 무드 | LAION CLAP zero-shot (1차 스파이크로 검증) | PyTorch라 Apple Silicon 문제 없음 |
-| DB | SQLite + SQLAlchemy + Alembic | 개인용, 파일 하나, 추후 서버 이전 용이 |
+| DB | SQLite + SQLAlchemy + Alembic | 개인용, 파일 하나, 추후 서버 이전 용이 — **Alembic 도입 완료(2026-07-30)**: `create_session_factory()`가 `Base.metadata.create_all()` 대신 `alembic upgrade head`로 스키마를 적용(`core/src/musicna_core/store/migrations/`). 기존 `data/musicna.db`에 대한 `alembic stamp head`는 아직 수동 작업으로 남아 있음(PROGRESS.md 참조) |
 | API/UI | FastAPI + WebSocket + 경량 웹 프론트(피아노롤/타임라인) | muscriptor 자체 웹 UI와 같은 패턴, iOS 앱이 추후 같은 API 사용 |
 | 패키징 | uv (Python 3.11+), 모노레포 | 아래 "코어 분리" 구조 참조 |
 
