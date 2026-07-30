@@ -6,6 +6,8 @@ from alembic import command
 from alembic.config import Config
 from sqlalchemy import create_engine, inspect
 
+from musicna_core.store import create_session_factory
+
 MIGRATIONS_DIR = Path(__file__).resolve().parent.parent / "src" / "musicna_core" / "store" / "migrations"
 
 EXPECTED_TABLES = {
@@ -31,4 +33,12 @@ def _upgrade_to_head(db_path: Path) -> set[str]:
 
 def test_alembic_upgrade_head_creates_expected_schema(tmp_path):
     tables = _upgrade_to_head(tmp_path / "migrated.db")
+    assert tables == EXPECTED_TABLES
+
+
+def test_create_session_factory_applies_migrations(tmp_path):
+    db_path = tmp_path / "factory.db"
+    create_session_factory(str(db_path))
+    engine = create_engine(f"sqlite:///{db_path}")
+    tables = set(inspect(engine).get_table_names())
     assert tables == EXPECTED_TABLES

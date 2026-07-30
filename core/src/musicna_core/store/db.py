@@ -1,10 +1,13 @@
 """DB 스키마 — docs/PLAN.md 'DB 스키마' 절의 SQLAlchemy 구현.
 
-Phase 4에서 Alembic 마이그레이션을 도입하기 전까지는 create_all로 초기화한다.
+스키마 초기화·변경은 Alembic 마이그레이션(store/migrations/)으로 관리한다.
 """
 
 from datetime import datetime
+from pathlib import Path
 
+from alembic import command
+from alembic.config import Config
 from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, create_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship, sessionmaker
 
@@ -111,8 +114,16 @@ class ChordLoopRow(Base):
     analysis: Mapped[Analysis] = relationship(back_populates="chord_loops")
 
 
+def _run_migrations(db_path: str) -> None:
+    """Alembic으로 db_path의 스키마를 최신 리비전까지 적용한다."""
+    cfg = Config()
+    cfg.set_main_option("script_location", str(Path(__file__).parent / "migrations"))
+    cfg.set_main_option("sqlalchemy.url", f"sqlite:///{db_path}")
+    command.upgrade(cfg, "head")
+
+
 def create_session_factory(db_path: str = "data/musicna.db") -> sessionmaker:
-    """SQLite 파일 경로로 세션 팩토리를 만들고 스키마를 초기화한다."""
+    """SQLite 파일 경로로 세션 팩토리를 만들고 마이그레이션을 최신까지 적용한다."""
+    _run_migrations(db_path)
     engine = create_engine(f"sqlite:///{db_path}")
-    Base.metadata.create_all(engine)
     return sessionmaker(bind=engine)
